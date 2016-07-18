@@ -341,7 +341,7 @@ namespace SafetySharp.Analysis
 				}
 				else if (isHeuristicSuggestion)
 				{
-					ConsoleHelpers.WriteLine($"    safe:      {{ {set.ToString(allFaults)} }}  [heuristic]", ConsoleColor.Blue);
+					//ConsoleHelpers.WriteLine($"    safe:      {{ {set.ToString(allFaults)} }}  [heuristic]", ConsoleColor.Blue);
 				}
 
 				_checkedSets.Add(set);
