@@ -114,7 +114,7 @@ namespace SafetySharp.CaseStudies.PillProduction.Analysis
 
 		private void Dcca(Model model, FaultActivationBehavior activation, params IFaultSetHeuristic[] heuristics)
 		{
-			var modelChecker = new SafetyAnalysis() {Backend=SafetyAnalysisBackend.FaultOptimizedStateGraph};
+			var modelChecker = new SafetyAnalysis();
 
 			modelChecker.Configuration.StateCapacity = 1 << 16;
 			modelChecker.Configuration.CpuCount = 4;
