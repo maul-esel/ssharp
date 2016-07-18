@@ -82,7 +82,7 @@ namespace SafetySharp.Analysis
 		///   Gets all of the fault sets that were checked for criticality. Some sets might not have been checked as they were known to
 		///   be critical sets due to the monotonicity of the critical set property.
 		/// </summary>
-		public ISet<ISet<Fault>> CheckedSets { get; private set; }
+		public ulong CheckedSetCount { get; private set; }
 
 		/// <summary>
 		///   Gets the exception that has been thrown during the analysis, if any.
@@ -151,13 +151,13 @@ namespace SafetySharp.Analysis
 		/// <param name="checkedSets">The sets that have been checked.</param>
 		/// <param name="counterExamples">The counter examples that were generated for the critical fault sets.</param>
 		/// <param name="exceptions">The exceptions that have been thrown during the analysis.</param>
-		internal void SetResult(HashSet<FaultSet> criticalSets, HashSet<FaultSet> checkedSets,
+		internal void SetResult(HashSet<FaultSet> criticalSets, ulong checkedSetCount,
 								Dictionary<FaultSet, CounterExample> counterExamples, Dictionary<FaultSet, Exception> exceptions)
 		{
 			var knownFaultSets = new Dictionary<FaultSet, ISet<Fault>>();
 
 			MinimalCriticalSets = Convert(knownFaultSets, criticalSets);
-			CheckedSets = Convert(knownFaultSets, checkedSets);
+			CheckedSetCount = checkedSetCount;
 			CounterExamples = counterExamples.ToDictionary(pair => Convert(knownFaultSets, pair.Key), pair => pair.Value);
 			Exceptions = exceptions.ToDictionary(pair => Convert(knownFaultSets, pair.Key), pair => pair.Value);
 		}
@@ -221,7 +221,7 @@ namespace SafetySharp.Analysis
 		public override string ToString()
 		{
 			var builder = new StringBuilder();
-			var percentage = CheckedSets.Count / (double)(1L << Faults.Count()) * 100;
+			var percentage = CheckedSetCount / (double)(1L << Faults.Count()) * 100;
 			var cardinalitySum = MinimalCriticalSets.Sum(set => set.Count);
 			var minimalSetCardianalityAverage = cardinalitySum == 0 ? 0 : cardinalitySum / MinimalCriticalSets.Count;
 
@@ -257,7 +257,7 @@ namespace SafetySharp.Analysis
 				builder.AppendLine($"Suppressed Faults: {getFaultString(SuppressedFaults)}");
 
 			builder.AppendLine();
-			builder.AppendLine($"Checked Fault Sets: {CheckedSets.Count} ({percentage:F0}% of all fault sets)");
+			builder.AppendLine($"Checked Fault Sets: {CheckedSetCount} ({percentage:F0}% of all fault sets)");
 			builder.AppendLine($"Minimal Critical Sets: {MinimalCriticalSets.Count}");
 			builder.AppendLine($"Average Minimal Critical Set Cardinality: {minimalSetCardianalityAverage:F1}");
 			builder.AppendLine();

@@ -37,7 +37,7 @@ namespace SafetySharp.Analysis
 	/// </summary>
 	public sealed class SafetyAnalysis
 	{
-		private readonly HashSet<FaultSet> _checkedSets = new HashSet<FaultSet>();
+		private ulong _checkedSetCount = 0ul;
 		private readonly Dictionary<FaultSet, CounterExample> _counterExamples = new Dictionary<FaultSet, CounterExample>();
 		private readonly Dictionary<FaultSet, Exception> _exceptions = new Dictionary<FaultSet, Exception>();
 		private AnalysisBackend _backend;
@@ -245,7 +245,7 @@ namespace SafetySharp.Analysis
 
 			_results.IsComplete = isComplete;
 			_results.Time = stopwatch.Elapsed;
-			_results.SetResult(minimalCritical, _checkedSets, _counterExamples, _exceptions);
+			_results.SetResult(minimalCritical, _checkedSetCount, _counterExamples, _exceptions);
 
 			return _results;
 		}
@@ -254,7 +254,7 @@ namespace SafetySharp.Analysis
 		{
 			_safeSets = new FaultSetCollection(model.Faults.Length);
 			_criticalSets = new FaultSetCollection(model.Faults.Length);
-			_checkedSets.Clear();
+			_checkedSetCount = 0ul;
 			_counterExamples.Clear();
 			_exceptions.Clear();
 		}
@@ -344,7 +344,7 @@ namespace SafetySharp.Analysis
 					//ConsoleHelpers.WriteLine($"    safe:      {{ {set.ToString(allFaults)} }}  [heuristic]", ConsoleColor.Blue);
 				}
 
-				_checkedSets.Add(set);
+				_checkedSetCount++;
 
 				if (result.CounterExample != null)
 					_counterExamples.Add(set, result.CounterExample);
@@ -357,7 +357,7 @@ namespace SafetySharp.Analysis
 				ConsoleHelpers.WriteLine($"    critical:  {{ {set.ToString(allFaults)} }} {heuristic} [exception thrown]", ConsoleColor.DarkRed);
 				Console.WriteLine(e.InnerException);
 
-				_checkedSets.Add(set);
+				_checkedSetCount++;
 				_criticalSets.Add(set);
 				_exceptions.Add(set, e.InnerException);
 
