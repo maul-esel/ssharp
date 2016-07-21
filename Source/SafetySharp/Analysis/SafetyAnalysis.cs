@@ -247,6 +247,8 @@ namespace SafetySharp.Analysis
 			_results.Time = stopwatch.Elapsed;
 			_results.SetResult(minimalCritical, _checkedSetCount, _counterExamples, _exceptions);
 
+			ConsoleHelpers.WriteLine($"Power set Generation took {powerSetWatch.Elapsed.TotalSeconds} seconds");
+
 			return _results;
 		}
 
@@ -377,14 +379,67 @@ namespace SafetySharp.Analysis
 			return _safeSets.ContainsSupersetOf(faultSet);
 		}
 
+
+		private static Stopwatch powerSetWatch = new Stopwatch();
 		/// <summary>
 		///   Generates a level of the power set.
 		/// </summary>
 		/// <param name="cardinality">The cardinality of the sets that should be generated.</param>
 		/// <param name="faults">The fault set the power set is generated for.</param>
 		/// <param name="previousSafe">The set of safe sets generated at the previous level.</param>
-		private static HashSet<FaultSet> GeneratePowerSetLevel(int cardinality, Fault[] faults, HashSet<FaultSet> previousSafe)
+		private HashSet<FaultSet> GeneratePowerSetLevel(int cardinality, Fault[] faults, HashSet<FaultSet> previousSafe)
 		{
+			powerSetWatch.Start();
+			var result = new HashSet<FaultSet>();
+
+			switch (cardinality)
+			{
+				case 0:
+					// There is only the empty set with a cardinality of 0
+					result.Add(new FaultSet());
+					break;
+				case 1:
+					// We have to kick things off by explicitly generating the singleton sets; at this point,
+					// we know that there are no further minimal critical sets if the empty set is already critical.
+					var emptySet = new FaultSet();
+					if (!_criticalSets.Contains(emptySet))
+					{
+						foreach (var fault in faults)
+							result.Add(new FaultSet(fault));
+					}
+					break;
+				default:
+					// We now generate the sets with the requested cardinality based on the sets from the previous level 
+					// which had a cardinality that is one less than the sets we're going to generate now. The basic
+					// idea is that we create the union between all safe sets and all singleton sets and discard
+					// the ones we don't want
+					foreach (var safeSet in previousSafe)
+					{
+						foreach (var fault in faults)
+						{
+							// If we're trying to add an element to the set that it already contains, we get a set
+							// we've already checked before; discard it
+							if (safeSet.Contains(fault))
+								continue;
+
+							var set = safeSet.Add(fault);
+
+							// Check if the newly generated set is a super set of any critical sets;
+							// if so, discard it
+							if (!IsTriviallyCritical(set))
+								result.Add(set);
+						}
+					}
+					break;
+			}
+
+			powerSetWatch.Stop();
+			return result;
+		}
+
+		private static HashSet<FaultSet> GeneratePowerSetLevel2(int cardinality, Fault[] faults, HashSet<FaultSet> previousSafe)
+		{
+			powerSetWatch.Start();
 			var result = new HashSet<FaultSet>();
 
 			switch (cardinality)
@@ -456,6 +511,7 @@ namespace SafetySharp.Analysis
 					break;
 			}
 
+			powerSetWatch.Stop();
 			return result;
 		}
 
