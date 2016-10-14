@@ -25,7 +25,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Plants
 	using System.Linq;
 	using SafetySharp.Modeling;
 
-	internal class Cart : Component
+	public class Cart : Component
 	{
 		[Hidden]
 		private string _name;

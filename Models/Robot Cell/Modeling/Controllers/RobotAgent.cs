@@ -28,7 +28,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 	using Odp;
 	using System;
 
-	internal class RobotAgent : Agent
+	public class RobotAgent : Agent
 	{
 		public readonly Fault Broken = new TransientFault();
 		public readonly Fault ResourceTransportFault = new TransientFault();

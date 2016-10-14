@@ -32,7 +32,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling
 
 	using IController = Odp.IController<Controllers.Agent, Controllers.Task>;
 
-	internal class Model : ModelBase
+	public class Model : ModelBase
 	{
 		public const int MaxRoleCount = 8;
 		public const int MaxAgentRequests = 2;

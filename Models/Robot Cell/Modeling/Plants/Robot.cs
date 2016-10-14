@@ -27,7 +27,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Plants
 	using Controllers;
 	using SafetySharp.Modeling;
 
-	internal class Robot : Component
+	public class Robot : Component
 	{
 		private Tool _currentTool;
 

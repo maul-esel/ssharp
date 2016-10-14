@@ -29,7 +29,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 	using IController = Odp.IController<Agent, Task>;
 
-	class CentralRobotReconfiguration : CentralReconfiguration<Agent, Task>
+	public class CentralRobotReconfiguration : CentralReconfiguration<Agent, Task>
 	{
 		public readonly Fault ReconfigurationFailure = new TransientFault();
 

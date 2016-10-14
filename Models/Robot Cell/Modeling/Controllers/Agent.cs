@@ -28,7 +28,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 	using SafetySharp.Modeling;
 	using Odp;
 
-	internal abstract class Agent : BaseAgent<Agent, Task>
+	public abstract class Agent : BaseAgent<Agent, Task>
 	{
 		public readonly Fault ConfigurationUpdateFailed = new TransientFault();
 
