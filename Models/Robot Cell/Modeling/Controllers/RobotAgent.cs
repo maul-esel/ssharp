@@ -26,7 +26,6 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 	using Plants;
 	using SafetySharp.Modeling;
 	using Odp;
-	using System;
 
 	public class RobotAgent : Agent
 	{
@@ -87,9 +86,9 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 			return processCapability == null || CanApply(processCapability);
 		}
 
-		protected override void TakeResource(Resource<Task> resource)
+		protected override void TakeResource(Odp.Resource resource)
 		{
-			var agent = (CartAgent)_currentRole?.PreCondition.Port;
+			var agent = (CartAgent)_currentRole.PreCondition.Port;
 
 			// If we fail to transfer the resource, the robot loses all of its connections
 			if (TakeResource(agent.Cart))
@@ -104,7 +103,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 		protected override void TransferResource()
 		{
-			var agent = (CartAgent)_currentRole?.PostCondition.Port;
+			var agent = (CartAgent)_currentRole.PostCondition.Port;
 
 			// If we fail to transfer the resource, the robot loses all of its connections
 			if (PlaceResource(agent.Cart))
@@ -125,17 +124,25 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 				input.Disconnect(this);
 
 			foreach (var output in Outputs.ToArray())
-				this.Disconnect(output);
+				Disconnect(output);
+		}
+
+		public override bool CanExecute(Role role)
+		{
+			if (role.CapabilitiesToApply.FirstOrDefault() is ProduceCapability)
+			{
+				var capability = (ProduceCapability)role.CapabilitiesToApply.First();
+				return (capability.Resources.Count > 0 && !capability.Tasks.Any(task => task.IsResourceInProduction))
+					   && base.CanExecute(role);
+			}
+			return base.CanExecute(role);
 		}
 
 		public override void Produce(ProduceCapability capability)
 		{
-			if (Resource != null || capability.Resources.Count == 0 || capability.Tasks.Any(task => task.IsResourceInProduction))
-				return;
-
 			Resource = capability.Resources[0];
 			capability.Resources.RemoveAt(0);
-			Resource.Task.IsResourceInProduction = true;
+			(Resource.Task as Task).IsResourceInProduction = true;
 			Robot?.ProduceWorkpiece((Resource as Resource).Workpiece);
 			Resource.OnCapabilityApplied(capability);
 		}
@@ -145,14 +152,14 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 			if (Resource == null)
 				return;
 
-			if (_currentCapability != capability)
+			if (!Equals(_currentCapability, capability))
 			{
 				// Switch the capability; if we fail to do so, remove all other capabilities from the available ones
 				if (SwitchCapability(capability))
 					_currentCapability = capability;
 				else
 				{
-					_availableCapabilities.RemoveAll(c => c != _currentCapability);
+					_availableCapabilities.RemoveAll(c => !c.Equals(_currentCapability));
 					return;
 				}
 			}
@@ -175,7 +182,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 			Resource.OnCapabilityApplied(capability);
 			Robot?.ConsumeWorkpiece();
-			Resource.Task.IsResourceInProduction = false;
+			(Resource.Task as Task).IsResourceInProduction = false;
 			Resource = null;
 		}
 

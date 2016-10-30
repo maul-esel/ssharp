@@ -25,14 +25,12 @@ namespace SafetySharp.Odp
 	using System.Collections.Generic;
 	using Modeling;
 
-	public abstract class AbstractController<TAgent, TTask> : Component, IController<TAgent, TTask>
-		where TAgent : BaseAgent<TAgent, TTask>
-		where TTask : class, ITask
+	public abstract class AbstractController : IController
 	{
 		[Hidden(HideElements = true)]
-		public TAgent[] Agents { get; }
+		public BaseAgent[] Agents { get; }
 
-		public AbstractController(TAgent[] agents)
+		protected AbstractController(BaseAgent[] agents)
 		{
 			Agents = agents;
 		}
@@ -43,23 +41,21 @@ namespace SafetySharp.Odp
 			protected set;
 		}
 
-		public abstract Dictionary<TAgent, IEnumerable<Role<TAgent, TTask>>> CalculateConfigurations(params TTask[] tasks);
+		public abstract Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks);
 
-		protected Role<TAgent, TTask> GetRole(TTask recipe, TAgent input, Condition<TAgent, TTask>? previous)
+		protected Role GetRole(ITask recipe, BaseAgent input, Condition? previous)
 		{
-			var role = new Role<TAgent, TTask>();
+			var role = new Role()
+			{
+				PreCondition = { Task = recipe, Port = input },
+				PostCondition = { Task = recipe, Port = null }
+			};
 
-			// update precondition
-			role.PreCondition.Task = recipe;
-			role.PreCondition.Port = input;
 			role.PreCondition.ResetState();
+			role.PostCondition.ResetState();
+
 			if (previous != null)
 				role.PreCondition.CopyStateFrom(previous.Value);
-
-			// update postcondition
-			role.PostCondition.Task = recipe;
-			role.PostCondition.Port = null;
-			role.PostCondition.ResetState();
 			role.PostCondition.CopyStateFrom(role.PreCondition);
 
 			role.Clear();

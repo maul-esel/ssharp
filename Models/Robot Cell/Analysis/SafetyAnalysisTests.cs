@@ -27,34 +27,50 @@ namespace SafetySharp.CaseStudies.RobotCell.Analysis
 	using System.Linq;
 	using Modeling;
 	using Modeling.Controllers;
+	using Modeling.Controllers.Reconfiguration;
 	using NUnit.Framework;
 	using SafetySharp.Analysis;
 
 	internal class SafetyAnalysisTests
 	{
 		[TestCaseSource(nameof(CreateConfigurations))]
+		public void ComputeStateVectorLayout(Model model)
+		{
+			var modelChecker = new SSharpChecker { Configuration = { StateCapacity = 1 << 12 } };
+			var result = modelChecker.CheckInvariant(model, false);
+
+			Console.WriteLine(result.StateVectorLayout);
+		}
+
+		[TestCaseSource(nameof(CreateConfigurations))]
 		public void NoDamagedWorkpieces(Model model)
 		{
-			var modelChecker = new SafetyAnalysis { Configuration = { StateCapacity = 1 << 22, GenerateCounterExample = false } };
+			var modelChecker = new SafetyAnalysis { Configuration = { StateCapacity = 1 << 12, GenerateCounterExample = false } };
 			var result = modelChecker.ComputeMinimalCriticalSets(model, model.Workpieces.Any(w => w.IsDamaged), maxCardinality: 2);
 
 			Console.WriteLine(result);
+			Assert.AreEqual(0, result.Exceptions.Count, "unhandled exceptions!");
 		}
 
 		[TestCaseSource(nameof(CreateConfigurations))]
 		public void AllWorkpiecesCompleteEventually(Model model)
 		{
-			var modelChecker = new SafetyAnalysis { Configuration = { StateCapacity = 1 << 22, GenerateCounterExample = false } };
+			var modelChecker = new SafetyAnalysis { Configuration = { StateCapacity = 1 << 12, GenerateCounterExample = false } };
+
+			Formula stepCountExceeded =
+				(model.Controller as IntolerableAnalysisController)?.StepCount >= IntolerableAnalysisController.MaxSteps;
+
 			var result = modelChecker.ComputeMinimalCriticalSets(model,
-				model.ReconfigurationStrategy.StepCount >= CentralRobotReconfiguration.MaxSteps &&
+				stepCountExceeded &&
 				!model.Workpieces.All(w => w.IsDamaged || w.IsDiscarded || w.IsComplete), maxCardinality: 2);
 
 			Console.WriteLine(result);
+			Assert.AreEqual(0, result.Exceptions.Count, "unhandled exceptions!");
 		}
 
 		private static IEnumerable CreateConfigurations()
 		{
-			return Model.CreateConfigurations<FastController>(AnalysisMode.IntolerableFaults)
+			return SampleModels.CreateConfigurations<FastController>(AnalysisMode.IntolerableFaults)
 						.Select(model => new TestCaseData(model).SetName(model.Name));
 		}
 	}

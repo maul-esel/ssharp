@@ -20,22 +20,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.PillProduction.Modeling
+namespace SafetySharp.Odp
 {
-	using System.Linq;
-	using Odp;
+	using System.Collections.Generic;
 
-	internal class FastController : Odp.FastController
+	public interface IRoleSelector
 	{
-		public FastController(params Station[] stations) : base(stations) { }
-
-		// override necessary due to ingredient amounts
-		protected override bool CanSatisfyNext(ITask recipe, int[] path, int prefixLength, int station)
-		{
-			var capabilities = from index in Enumerable.Range(0, prefixLength + 1)
-							   where index == prefixLength || path[index] == station
-							   select recipe.RequiredCapabilities[index];
-			return capabilities.ToArray().IsSatisfiable(_availableAgents[station].AvailableCapabilities);
-		}
+		Role? ChooseRole(List<Role> roles, IEnumerable<BaseAgent.ResourceRequest> resourceRequests);
 	}
 }

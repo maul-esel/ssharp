@@ -1,4 +1,4 @@
-// The MIT License (MIT)
+﻿// The MIT License (MIT)
 // 
 // Copyright (c) 2014-2016, Institute for Software & Systems Engineering
 // 
@@ -20,12 +20,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
+namespace Tests.Diagnostics.FaultEffects.Invalid
 {
-	public enum AnalysisMode
+	using System;
+	using SafetySharp.Compiler.Analyzers;
+	using SafetySharp.Modeling;
+
+	[Diagnostic(DiagnosticIdentifier.EventFaultEffect, 43, 42, 1,
+		 "Tests.Diagnostics.FaultEffects.Invalid.Events.E.P", "Tests.Diagnostics.FaultEffects.Invalid.Events.P")]
+	public class Events : Component
 	{
-		AllFaults,
-		TolerableFaults,
-		IntolerableFaults
+		public virtual event Action P;
+
+		public Events()
+		{
+			P();
+		}
+
+		[FaultEffect]
+		public class E : Events
+		{
+			public override event Action P
+			{
+				add { base.P += value; }
+				remove { base.P -= value; }
+			}
+		}
 	}
 }

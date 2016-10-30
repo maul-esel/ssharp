@@ -20,22 +20,38 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.PillProduction.Modeling
+namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers.Reconfiguration
 {
-	using System.Linq;
+	using System.Collections.Generic;
 	using Odp;
 
-	internal class FastController : Odp.FastController
+	public class TolerableAnalysisController : IController
 	{
-		public FastController(params Station[] stations) : base(stations) { }
+		private readonly IController _controller;
 
-		// override necessary due to ingredient amounts
-		protected override bool CanSatisfyNext(ITask recipe, int[] path, int prefixLength, int station)
+		private bool _hasReconfed;
+
+		public TolerableAnalysisController(IController controller)
 		{
-			var capabilities = from index in Enumerable.Range(0, prefixLength + 1)
-							   where index == prefixLength || path[index] == station
-							   select recipe.RequiredCapabilities[index];
-			return capabilities.ToArray().IsSatisfiable(_availableAgents[station].AvailableCapabilities);
+			_controller = controller;
+		}
+
+		public BaseAgent[] Agents => _controller.Agents;
+		public bool ReconfigurationFailure => _controller.ReconfigurationFailure;
+		public Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
+		{
+			if (ReconfigurationFailure)
+				return null;
+
+			if (_hasReconfed)
+			{
+				// This speeds up analyses when checking for reconf failures with DCCA, but is otherwise
+				// unacceptable for other kinds of analyses
+				return null;
+			}
+
+			_hasReconfed = true;
+			return _controller.CalculateConfigurations(tasks);
 		}
 	}
 }

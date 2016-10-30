@@ -23,18 +23,16 @@
 namespace SafetySharp.Odp
 {
 	using System.Collections.Generic;
-	using SafetySharp.Modeling;
+	using Modeling;
 
 	// TODO: naming is ambiguous between "controller" (vs. "observer") and "controller" (vs. "plant")
-	public interface IController<TAgent, TTask> : IComponent
-		where TAgent : BaseAgent<TAgent,TTask>
-		where TTask : class, ITask
+	public interface IController
 	{
 		[Provided]
-		TAgent[] Agents { get; }
+		BaseAgent[] Agents { get; }
 
 		[Provided]
-		Dictionary<TAgent, IEnumerable<Role<TAgent, TTask>>> CalculateConfigurations(params TTask[] tasks);
+		Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks);
 
 		[Provided]
 		bool ReconfigurationFailure { get; }

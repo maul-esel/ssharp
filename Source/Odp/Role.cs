@@ -26,16 +26,14 @@ namespace SafetySharp.Odp
 	using System.Collections.Generic;
 	using System.Linq;
 
-	public struct Role<TAgent, TTask>
-		where TAgent : BaseAgent<TAgent, TTask>
-		where TTask : class, ITask
+	public struct Role
 	{
 		public bool IsLocked { get; set; }
 
-		public Condition<TAgent, TTask> PreCondition;
-		public Condition<TAgent, TTask> PostCondition;
+		public Condition PreCondition;
+		public Condition PostCondition;
 
-		public TTask Task => PreCondition.Task ?? PostCondition.Task;
+		public ITask Task => PreCondition.Task ?? PostCondition.Task;
 
 		public IEnumerable<ICapability> CapabilitiesToApply =>
 			Task.RequiredCapabilities.Skip(_capabilitiesToApplyStart).Take(_capabilitiesToApplyCount);
@@ -46,13 +44,14 @@ namespace SafetySharp.Odp
 
 		public bool IsCompleted => _current >= _capabilitiesToApplyCount;
 
-		public void ExecuteStep(TAgent agent)
+		public void ExecuteStep(BaseAgent agent)
 		{
 			if (IsCompleted)
 				throw new InvalidOperationException("The role has already been completely executed and must be reset.");
 
-			var capability = Task.RequiredCapabilities[_capabilitiesToApplyStart + _current++];
+			var capability = Task.RequiredCapabilities[_capabilitiesToApplyStart + _current];
 			agent.ApplyCapability(capability);
+			_current++;
 		}
 
 		public void Reset()

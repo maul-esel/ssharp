@@ -44,7 +44,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 		protected override void TransferResource()
 		{
-			var agent = (RobotAgent)_currentRole?.PostCondition.Port;
+			var agent = (RobotAgent)_currentRole.PostCondition.Port;
 
 			// If we fail to move to the robot, the cart loses its route
 			if (MoveTo(agent.Robot))
@@ -60,7 +60,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 			BidirectionallyDisconnect(agent);
 		}
 
-		protected override void InitiateResourceTransfer(Agent source)
+		protected override void InitiateResourceTransfer(Odp.BaseAgent source)
 		{
 			// If we fail to move to the robot, the cart loses its route
 			if (MoveTo(((RobotAgent)source).Robot))

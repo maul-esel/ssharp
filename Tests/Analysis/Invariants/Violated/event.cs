@@ -20,22 +20,46 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.PillProduction.Modeling
+namespace Tests.Analysis.Invariants.Violated
 {
-	using System.Linq;
-	using Odp;
+	using System;
+	using SafetySharp.Modeling;
+	using Shouldly;
 
-	internal class FastController : Odp.FastController
+	internal class Event : AnalysisTestObject
 	{
-		public FastController(params Station[] stations) : base(stations) { }
-
-		// override necessary due to ingredient amounts
-		protected override bool CanSatisfyNext(ITask recipe, int[] path, int prefixLength, int station)
+		protected override void Check()
 		{
-			var capabilities = from index in Enumerable.Range(0, prefixLength + 1)
-							   where index == prefixLength || path[index] == station
-							   select recipe.RequiredCapabilities[index];
-			return capabilities.ToArray().IsSatisfiable(_availableAgents[station].AvailableCapabilities);
+			var d = new D();
+			var c = new C(d);
+
+			CheckInvariant(c.F != 2, d).ShouldBe(false);
+		}
+
+		private class C : Component
+		{
+			public int F;
+
+			public C(D d)
+			{
+				d.E += f => F = f;
+			}
+		}
+
+		private class D : Component
+		{
+			[Range(0, 3, OverflowBehavior.Clamp)]
+			private int _f;
+
+			public event Action<int> E;
+
+			public override void Update()
+			{
+				_f++;
+
+				if (_f == 2)
+					E(_f);
+			}
 		}
 	}
 }

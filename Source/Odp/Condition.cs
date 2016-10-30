@@ -26,25 +26,24 @@ namespace SafetySharp.Odp
 	using System.Collections.Generic;
 	using System.Linq;
 
-	public struct Condition<TAgent, TTask>
-		where TTask : class, ITask
+	public struct Condition
 	{
-		public Condition(TAgent port, TTask task, int statePrefixLength)
+		public Condition(BaseAgent port, ITask task, int statePrefixLength)
 		{
 			Port = port;
 			Task = task;
 			_statePrefixLength = checked((byte)statePrefixLength);
 		}
 
-		public TAgent Port { get; set; }
-		public TTask Task { get; set; }
+		public BaseAgent Port { get; set; }
+		public ITask Task { get; set; }
 
 		private byte _statePrefixLength;
 
 		public IEnumerable<ICapability> State =>
 			Task?.RequiredCapabilities.Take(_statePrefixLength) ?? Enumerable.Empty<ICapability>();
 
-		public bool StateMatches(Condition<TAgent, TTask> other)
+		public bool StateMatches(Condition other)
 		{
 			return Task == other.Task
 				   && _statePrefixLength == other._statePrefixLength;
@@ -54,7 +53,7 @@ namespace SafetySharp.Odp
 		{
 			if (_statePrefixLength >= Task.RequiredCapabilities.Length)
 				throw new InvalidOperationException("Condition already has maximum state.");
-			if (Task.RequiredCapabilities[_statePrefixLength] != capability)
+			if (!Task.RequiredCapabilities[_statePrefixLength].Equals(capability))
 				throw new InvalidOperationException("Invalid capability order in Condition state.");
 
 			_statePrefixLength++;
@@ -65,7 +64,7 @@ namespace SafetySharp.Odp
 			_statePrefixLength = 0;
 		}
 
-		public void CopyStateFrom(Condition<TAgent, TTask> other)
+		public void CopyStateFrom(Condition other)
 		{
 			if (other.Task != Task)
 				throw new InvalidOperationException("Invalid task: cannot copy Condition state");

@@ -28,11 +28,11 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 	using SafetySharp.Modeling;
 	using Odp;
 
-	public abstract class Agent : BaseAgent<Agent, Task>
+	public abstract class Agent : BaseAgent
 	{
 		public readonly Fault ConfigurationUpdateFailed = new TransientFault();
 
-		public Agent(params ICapability[] capabilities)
+		protected Agent(params ICapability[] capabilities)
 		{
 			if (HasDuplicates(capabilities))
 				throw new InvalidOperationException("Duplicate capabilities have no effect.");
@@ -67,6 +67,8 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 			return false;
 		}
 
+		internal Queue<Task> TaskQueue;
+
 		protected readonly List<ICapability> _availableCapabilities;
 		public override IEnumerable<ICapability> AvailableCapabilities => _availableCapabilities;
 
@@ -77,12 +79,16 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 		public override void Update()
 		{
 			CheckAllocatedCapabilities();
+			if (TaskQueue?.Count > 0)
+				PerformReconfiguration(new[] {
+					Tuple.Create(TaskQueue.Dequeue() as ITask, new State(this))
+				});
 			base.Update();
 		}
 
 		protected override void DropResource()
 		{
-			Resource.Task.IsResourceInProduction = false;
+			(Resource.Task as Task).IsResourceInProduction = false;
 			base.DropResource();
 		}
 
@@ -107,7 +113,8 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 				Process(capability as ProcessCapability);
 			else if (capability is ConsumeCapability)
 				Consume(capability as ConsumeCapability);
-			throw new InvalidOperationException();
+			else
+				throw new InvalidOperationException();
 		}
 
 		public void CheckAllocatedCapabilities()
@@ -125,14 +132,14 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 			foreach (var input in Inputs.ToArray())
 			{
-				if (!CheckInput(input))
+				if (!CheckInput((Agent)input))
 					input.Disconnect(this);
 			}
 
 			foreach (var output in Outputs.ToArray())
 			{
-				if (!CheckOutput(output))
-					this.Disconnect(output);
+				if (!CheckOutput((Agent)output))
+					Disconnect(output);
 			}
 		}
 
@@ -154,11 +161,11 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 		[FaultEffect(Fault = nameof(ConfigurationUpdateFailed))]
 		public abstract class ConfigurationUpdateFailedEffect : Agent
 		{
-			public ConfigurationUpdateFailedEffect(params ICapability[] capabilities)
+			protected ConfigurationUpdateFailedEffect(params ICapability[] capabilities)
 				: base(capabilities) { }
 
-			public override void RemoveAllocatedRoles(Task task) { }
-			public override void AllocateRoles(params Role<Agent, Task>[] roles) { }
+			public override void RemoveAllocatedRoles(ITask task) { }
+			public override void AllocateRoles(params Role[] roles) { }
 		}
 	}
 }

@@ -20,22 +20,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.PillProduction.Modeling
+namespace Tests.Diagnostics.PortKinds.Valid
 {
-	using System.Linq;
-	using Odp;
-
-	internal class FastController : Odp.FastController
+	using System;
+	using SafetySharp.Modeling;
+	
+	internal abstract class Events : Component
 	{
-		public FastController(params Station[] stations) : base(stations) { }
+		private event Action B;
 
-		// override necessary due to ingredient amounts
-		protected override bool CanSatisfyNext(ITask recipe, int[] path, int prefixLength, int station)
+		private event Action C
 		{
-			var capabilities = from index in Enumerable.Range(0, prefixLength + 1)
-							   where index == prefixLength || path[index] == station
-							   select recipe.RequiredCapabilities[index];
-			return capabilities.ToArray().IsSatisfiable(_availableAgents[station].AvailableCapabilities);
+			add { }
+			remove { }
 		}
+	}
+
+	internal interface IEvents : IComponent
+	{
+		event Action B;
 	}
 }

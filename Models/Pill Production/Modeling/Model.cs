@@ -24,7 +24,7 @@ namespace SafetySharp.CaseStudies.PillProduction.Modeling
 {
 	using System.Collections.Generic;
 	using SafetySharp.Modeling;
-	using IController = Odp.IController<Station, Recipe>;
+	using Odp;
 
 	public class Model : ModelBase
 	{
@@ -37,7 +37,7 @@ namespace SafetySharp.CaseStudies.PillProduction.Modeling
 			foreach (var station in stations)
 			{
 				station.ReconfigurationStrategy =
-					new Odp.CentralReconfiguration<Station, Recipe>(controller);
+					new CentralReconfiguration(controller);
 				station.RecipeQueue = _scheduledRecipes;
 			}
 			Controller = controller;
@@ -46,7 +46,6 @@ namespace SafetySharp.CaseStudies.PillProduction.Modeling
 		[Root(RootKind.Controller)]
 		public Station[] Stations { get; }
 
-		[Root(RootKind.Controller)]
 		public IController Controller { get; }
 
 		private readonly Queue<Recipe> _scheduledRecipes = new Queue<Recipe>();

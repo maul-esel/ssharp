@@ -20,22 +20,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.PillProduction.Modeling
+namespace Tests.Diagnostics.Bindings.Invalid
 {
-	using System.Linq;
-	using Odp;
+	using System;
+	using SafetySharp.Compiler.Analyzers;
+	using SafetySharp.Modeling;
 
-	internal class FastController : Odp.FastController
+	[Diagnostic(DiagnosticIdentifier.BindingFailure, 35, 13, 26, "<none>", "<none>")]
+	[Diagnostic(DiagnosticIdentifier.BindingFailure, 36, 13, 26, "<none>", "<none>")]
+	internal class Events : Component
 	{
-		public FastController(params Station[] stations) : base(stations) { }
-
-		// override necessary due to ingredient amounts
-		protected override bool CanSatisfyNext(ITask recipe, int[] path, int prefixLength, int station)
+		public Events()
 		{
-			var capabilities = from index in Enumerable.Range(0, prefixLength + 1)
-							   where index == prefixLength || path[index] == station
-							   select recipe.RequiredCapabilities[index];
-			return capabilities.ToArray().IsSatisfiable(_availableAgents[station].AvailableCapabilities);
+			Bind(nameof(A), nameof(B));
+			Bind(nameof(B), nameof(A));
 		}
+
+		public event Action A;
+		public extern event Action B;
 	}
 }

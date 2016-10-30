@@ -20,22 +20,43 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.PillProduction.Modeling
+namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers.Reconfiguration
 {
-	using System.Linq;
+	using System.Collections.Generic;
+	using SafetySharp.Modeling;
 	using Odp;
 
-	internal class FastController : Odp.FastController
+	class FaultyController : Component, IController
 	{
-		public FastController(params Station[] stations) : base(stations) { }
+		private readonly IController _controller;
 
-		// override necessary due to ingredient amounts
-		protected override bool CanSatisfyNext(ITask recipe, int[] path, int prefixLength, int station)
+		public FaultyController(IController controller)
 		{
-			var capabilities = from index in Enumerable.Range(0, prefixLength + 1)
-							   where index == prefixLength || path[index] == station
-							   select recipe.RequiredCapabilities[index];
-			return capabilities.ToArray().IsSatisfiable(_availableAgents[station].AvailableCapabilities);
+			_controller = controller;
+		}
+
+		protected FaultyController() { }
+
+		// composition
+		public BaseAgent[] Agents => _controller.Agents;
+		public virtual bool ReconfigurationFailure =>_controller.ReconfigurationFailure;
+		public virtual Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
+		{
+			return _controller.CalculateConfigurations(tasks);
+		}
+
+		// fault & effect
+		public readonly Fault ReconfigurationFault = new TransientFault();
+
+		[FaultEffect(Fault = nameof(ReconfigurationFault))]
+		public abstract class ReconfigurationFailureEffect : FaultyController
+		{
+			public override bool ReconfigurationFailure => true;
+
+			public override Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
+			{
+				return null;
+			}
 		}
 	}
 }

@@ -20,22 +20,52 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.PillProduction.Modeling
+namespace Tests.Execution.Simulation
 {
-	using System.Linq;
-	using Odp;
+	using System;
+	using SafetySharp.Analysis;
+	using SafetySharp.Modeling;
+	using Shouldly;
+	using Utilities;
 
-	internal class FastController : Odp.FastController
+	internal class Event : TestObject
 	{
-		public FastController(params Station[] stations) : base(stations) { }
-
-		// override necessary due to ingredient amounts
-		protected override bool CanSatisfyNext(ITask recipe, int[] path, int prefixLength, int station)
+		protected override void Check()
 		{
-			var capabilities = from index in Enumerable.Range(0, prefixLength + 1)
-							   where index == prefixLength || path[index] == station
-							   select recipe.RequiredCapabilities[index];
-			return capabilities.ToArray().IsSatisfiable(_availableAgents[station].AvailableCapabilities);
+			var simulator = new Simulator(TestModel.InitializeModel(new C { X = 1 }));
+			var c = (C)simulator.Model.Roots[0];
+
+			var y = 0;
+			c.Y += x => y = x;
+
+			c.X.ShouldBe(1);
+			y.ShouldBe(0);
+
+			simulator.SimulateStep();
+			y.ShouldBe(0);
+
+			simulator.SimulateStep();
+			y.ShouldBe(3);
+
+			y = 0;
+			simulator.SimulateStep();
+			y.ShouldBe(0);
+		}
+
+		private class C : Component
+		{
+			public int X;
+
+			[Hidden]
+			public event Action<int> Y;
+
+			public override void Update()
+			{
+				++X;
+
+				if (X == 3)
+					Y(X);
+			}
 		}
 	}
 }

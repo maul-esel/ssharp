@@ -26,11 +26,9 @@ namespace SafetySharp.Odp
 	using System.Collections.Generic;
 	using Modeling;
 
-	public interface IReconfigurationStrategy<TAgent, TTask> : IComponent
-		where TAgent : BaseAgent<TAgent, TTask>
-		where TTask : class, ITask
+	public interface IReconfigurationStrategy
 	{
 		[Provided]
-		void Reconfigure(IEnumerable<Tuple<TTask, BaseAgent<TAgent, TTask>.State>> reconfigurations);
+		void Reconfigure(IEnumerable<Tuple<ITask, BaseAgent.State>> reconfigurations);
 	}
 }

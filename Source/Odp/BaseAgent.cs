@@ -27,45 +27,41 @@ namespace SafetySharp.Odp
 	using System.Linq;
 	using Modeling;
 
-    public abstract partial class BaseAgent<TAgent, TTask> : Component, IAgent
-		where TAgent : BaseAgent<TAgent, TTask>
-		where TTask : class, ITask
-    {
+	public abstract partial class BaseAgent : Component, IAgent
+	{
 		// configuration options
 		public static int MaximumAgentCount = 20;
-		public static int MaximumResourceCount = 30;
-		public static int MaximumReconfigurationRequests = 30;
-		public static int MaximumRoleCount = 100;
+		public static int MaximumResourceCount = 20;
+		public static int MaximumRoleCount = 40;
 
 		private static uint _maxID = 0;
-		private readonly uint _id;
-		public uint ID => _id;
+		public uint ID { get; }
 
 		public abstract IEnumerable<ICapability> AvailableCapabilities { get; }
 
-		public List<Role<TAgent, TTask>> AllocatedRoles { get; } = new List<Role<TAgent, TTask>>(MaximumRoleCount);
-		private readonly List<uint> _applicationTimes = new List<uint>(MaximumRoleCount);
+		public List<Role> AllocatedRoles { get; } = new List<Role>(MaximumRoleCount);
 
-		private uint _timeStamp = 0;
-		private uint _roleApplications = 0;
+		[Hidden]
+		public IRoleSelector RoleSelector { get; protected set; }
 
 		protected BaseAgent()
 		{
-			_id = _maxID++;
+			ID = _maxID++;
+			RoleSelector = new FairRoleSelector(this);
 		}
 
 		public override void Update()
 		{
-			_timeStamp++;
 			Observe();
 			Work();
 		}
 
 		#region functional part
 
-		protected Role<TAgent, TTask>? _currentRole;
+		protected Role _currentRole;
+		protected bool _hasRole;
 
-		public Resource<TTask> Resource { get; protected set; }
+		public Resource Resource { get; protected set; }
 
 		private readonly StateMachine<States> _stateMachine = States.Idle;
 
@@ -84,11 +80,11 @@ namespace SafetySharp.Odp
 			_stateMachine.Transition( // abort work if current task has configuration issues
 				from: new[] { States.ChooseRole, States.WaitingForResource, States.ExecuteRole, States.Output, States.ResourceGiven },
 				to: States.Idle,
-				guard: _currentRole != null && _deficientConfiguration,
+				guard: _hasRole && _deficientConfiguration,
 				action: () =>
 				{
 					DropResource();
-					_currentRole = null;
+					_hasRole = false;
 					_deficientConfiguration = false;
 				});
 
@@ -100,37 +96,37 @@ namespace SafetySharp.Odp
 				.Transition( // no work found (or deadlock avoidance or similar reasons)
 					from: States.ChooseRole,
 					to: States.Idle,
-					guard: _currentRole == null)
+					guard: !_hasRole)
 				.Transition( // going to work on pre-existing resource (first transfer it)
 					from: States.ChooseRole,
 					to: States.WaitingForResource,
-					guard: _currentRole?.PreCondition.Port != null,
-					action: () => InitiateResourceTransfer(_currentRole?.PreCondition.Port))
+					guard: _hasRole && _currentRole.PreCondition.Port != null,
+					action: () => InitiateResourceTransfer(_currentRole.PreCondition.Port))
 				.Transition( // going to produce new resource (no transfer necessary)
 					from: States.ChooseRole,
 					to: States.ExecuteRole,
-					guard: _currentRole != null && _currentRole?.PreCondition.Port == null)
+					guard: _hasRole && _currentRole.PreCondition.Port == null)
 				.Transition( // actual work on resource
-					from : States.ExecuteRole,
+					from: States.ExecuteRole,
 					to: States.ExecuteRole,
-					guard: !_currentRole.Value.IsCompleted,
-					action: () => _currentRole?.ExecuteStep((TAgent)this))
+					guard: !_currentRole.IsCompleted,
+					action: () => _currentRole.ExecuteStep(this))
 				.Transition( // work is done -- pass resource on
 					from: States.ExecuteRole,
 					to: States.Output,
-					guard: _currentRole.Value.IsCompleted && _currentRole?.PostCondition.Port != null,
+					guard: _currentRole.IsCompleted && _currentRole.PostCondition.Port != null,
 					action: () =>
 					{
-						_currentRole?.PostCondition.Port.ResourceReady((TAgent)this, _currentRole.Value.PostCondition);
-						_currentRole?.Reset();
+						_currentRole.PostCondition.Port.ResourceReady(this, _currentRole.PostCondition);
+						_currentRole.Reset();
 					})
 				.Transition( // resource has been consumed
 					from: States.ExecuteRole,
 					to: States.Idle,
-					guard: _currentRole.Value.IsCompleted && Resource == null && _currentRole?.PostCondition.Port == null,
+					guard: _currentRole.IsCompleted && Resource == null && _currentRole.PostCondition.Port == null,
 					action: () => {
-						_currentRole?.Reset();
-						_currentRole = null;
+						_currentRole.Reset();
+						_hasRole = false;
 					});
 		}
 
@@ -141,110 +137,60 @@ namespace SafetySharp.Odp
 
 		public abstract void ApplyCapability(ICapability capability);
 
-		#region role selection algorithm
-
-		// fair role selection algorithm
-		// (Konstruktion selbst-organisierender Softwaresysteme, section 6.3)
-		//
-		// TODO: deadlock avoidance
-		// (Konstruktion selbst-organisierender Softwaresysteme, section 6.4)
-
 		private void ChooseRole()
 		{
-			// producer roles and roles with open resource requests can be chosen, unless they're locked
-			var candidateRoles = AllocatedRoles.Where(role => !role.IsLocked
-				&& (role.PreCondition.Port == null || _resourceRequests.Any(req => role.Equals(req.Role))));
-
-			if (candidateRoles.Any())
+			var role = RoleSelector.ChooseRole(AllocatedRoles, _resourceRequests);
+			_hasRole = role.HasValue;
+			if (_hasRole)
 			{
-				// fair role selection
-				_currentRole = candidateRoles.Aggregate(ChooseRole);
-
-				// update data
-				_roleApplications++;
-				_applicationTimes[AllocatedRoles.IndexOf(_currentRole.Value)] = _roleApplications;
-				_resourceRequests.RemoveAll(request => request.Source == _currentRole?.PreCondition.Port);
+				_currentRole = role.Value;
+				_resourceRequests.RemoveAll(request => request.Source == _currentRole.PreCondition.Port);
 			}
 		}
 
-		private Role<TAgent, TTask> ChooseRole(Role<TAgent, TTask> role1, Role<TAgent, TTask> role2)
+		public virtual bool CanExecute(Role role)
 		{
-			var fitness1 = Fitness(role1);
-			var fitness2 = Fitness(role2);
-
-			// role with higher fitness wins
-			if (fitness1 > fitness2)
-				return role1;
-			else if (fitness1 < fitness2)
-				return role2;
-			else
-			{
-				// same fitness => older resource request wins
-				var timeStamp1 = GetTimeStamp(role1);
-				var timeStamp2 = GetTimeStamp(role2);
-
-				if (timeStamp1 <= timeStamp2)
-					return role1;
-				return role2;
-			}
+			// producer roles and roles with open resource requests can be executed, unless they're locked
+			return !role.IsLocked
+				   && (role.PreCondition.Port == null || _resourceRequests.Any(req => role.Equals(req.Role)));
 		}
 
-		private const uint alpha = 1;
-		private const uint beta = 1;
-		private uint Fitness(Role<TAgent, TTask> role)
-		{
-			var applicationTime = _applicationTimes[AllocatedRoles.IndexOf(role)];
-			return alpha * (_roleApplications - applicationTime)
-				+ beta * (uint)(role.Task.RequiredCapabilities.Length - role.PreCondition.State.Count());
-		}
-
-		private uint GetTimeStamp(Role<TAgent, TTask> role)
-		{
-			// for roles without request (production roles) use current time
-			return (from request in _resourceRequests
-					where role.Equals(request.Role)
-					select request.TimeStamp
-				).DefaultIfEmpty(_timeStamp).Single();
-		}
-
-		private Role<TAgent, TTask>[] GetRoles(TAgent source, Condition<TAgent, TTask> condition)
+		private Role[] GetRoles(BaseAgent source, Condition condition)
 		{
 			return AllocatedRoles.Where(role =>
 				role.PreCondition.Port == source && role.PreCondition.StateMatches(condition)
 			).ToArray();
 		}
 
-		#endregion
-
 		#region resource flow
 
-		public List<TAgent> Inputs { get; } = new List<TAgent>();
-		public List<TAgent> Outputs { get; } = new List<TAgent>();
+		public List<BaseAgent> Inputs { get; } = new List<BaseAgent>(MaximumAgentCount);
+		public List<BaseAgent> Outputs { get; } = new List<BaseAgent>(MaximumAgentCount);
 
-		public void Connect(TAgent successor)
+		public void Connect(BaseAgent successor)
 		{
 			if (!Outputs.Contains(successor))
 				Outputs.Add(successor);
 			if (!successor.Inputs.Contains(this))
-				successor.Inputs.Add((TAgent)this);
+				successor.Inputs.Add(this);
 		}
 
-		public void BidirectionallyConnect(TAgent neighbor)
+		public void BidirectionallyConnect(BaseAgent neighbor)
 		{
 			Connect(neighbor);
-			neighbor.Connect((TAgent)this);
+			neighbor.Connect(this);
 		}
 
-		public void Disconnect(TAgent successor)
+		public void Disconnect(BaseAgent successor)
 		{
 			Outputs.Remove(successor);
-			successor.Inputs.Remove((TAgent)this);
+			successor.Inputs.Remove(this);
 		}
 
-		public void BidirectionallyDisconnect(TAgent neighbor)
+		public void BidirectionallyDisconnect(BaseAgent neighbor)
 		{
 			Disconnect(neighbor);
-			neighbor.Disconnect((TAgent)this);
+			neighbor.Disconnect(this);
 		}
 
 		#endregion
@@ -254,26 +200,24 @@ namespace SafetySharp.Odp
 		private readonly List<ResourceRequest> _resourceRequests
 			= new List<ResourceRequest>(MaximumResourceCount);
 
-		private struct ResourceRequest
+		public struct ResourceRequest
 		{
-			public ResourceRequest(TAgent source, Role<TAgent, TTask> role, uint timeStamp)
+			internal ResourceRequest(BaseAgent source, Role role)
 			{
 				Source = source;
 				Role = role;
-				TimeStamp = timeStamp;
 			}
 
-			public TAgent Source { get; }
-			public Role<TAgent, TTask> Role { get; }
-			public uint TimeStamp { get; }
+			public BaseAgent Source { get; }
+			public Role Role { get; }
 		}
 
-		protected virtual void InitiateResourceTransfer(TAgent source)
+		protected virtual void InitiateResourceTransfer(BaseAgent source)
 		{
 			source.TransferResource();
 		}
 
-		private void ResourceReady(TAgent agent, Condition<TAgent, TTask> condition)
+		private void ResourceReady(BaseAgent agent, Condition condition)
 		{
 			var roles = GetRoles(agent, condition);
 			if (roles.Length == 0)
@@ -281,7 +225,7 @@ namespace SafetySharp.Odp
 
 			foreach (var role in roles)
 			{
-				_resourceRequests.Add(new ResourceRequest(agent, role, _timeStamp));
+				_resourceRequests.Add(new ResourceRequest(agent, role));
 			}
 		}
 
@@ -290,11 +234,11 @@ namespace SafetySharp.Odp
 			_stateMachine.Transition(
 				from: States.Output,
 				to: States.ResourceGiven,
-				action: () => _currentRole?.PostCondition.Port.TakeResource(Resource)
+				action: () => _currentRole.PostCondition.Port.TakeResource(Resource)
 			);
 		}
 
-		protected virtual void TakeResource(Resource<TTask> resource)
+		protected virtual void TakeResource(Resource resource)
 		{
 			// assert resource != null
 			Resource = resource;
@@ -302,7 +246,7 @@ namespace SafetySharp.Odp
 			_stateMachine.Transition(
 				from: States.WaitingForResource,
 				to: States.ExecuteRole,
-				action: _currentRole.Value.PreCondition.Port.ResourcePickedUp
+				action: _currentRole.PreCondition.Port.ResourcePickedUp
 			);
 		}
 
@@ -313,7 +257,7 @@ namespace SafetySharp.Odp
 			_stateMachine.Transition(
 				from: States.ResourceGiven,
 				to: States.Idle,
-				action: () => _currentRole = null
+				action: () => _hasRole = false
 			);
 		}
 
@@ -329,11 +273,9 @@ namespace SafetySharp.Odp
 		private bool _deficientConfiguration = false;
 
 		[Hidden]
-		public IReconfigurationStrategy<TAgent, TTask> ReconfigurationStrategy { get; set; }
+		public IReconfigurationStrategy ReconfigurationStrategy { get; set; }
 
-		public delegate IEnumerable<TTask> InvariantPredicate(TAgent agent);
-
-		protected virtual InvariantPredicate[] MonitoringPredicates => new InvariantPredicate[] {
+		protected virtual InvariantPredicate[] MonitoringPredicates { get; } = new InvariantPredicate[] {
 			Invariant.IOConsistency,
 			Invariant.NeighborsAliveGuarantee,
 			Invariant.ResourceConsistency,
@@ -341,7 +283,7 @@ namespace SafetySharp.Odp
 		};
 
 		// TODO: use to verify configuration
-		protected virtual InvariantPredicate[] ConsistencyPredicates => new InvariantPredicate[] {
+		protected virtual InvariantPredicate[] ConsistencyPredicates { get; } = new InvariantPredicate[] {
 			Invariant.PrePostConditionConsistency,
 			Invariant.TaskEquality,
 			Invariant.StateConsistency
@@ -358,25 +300,27 @@ namespace SafetySharp.Odp
 			);
 		}
 
-		protected void PerformReconfiguration(IEnumerable<Tuple<TTask, State>> reconfigurations)
+		protected void PerformReconfiguration(IEnumerable<Tuple<ITask, State>> reconfigurations)
 		{
-			var deficientTasks = new HashSet<TTask>(reconfigurations.Select(t => t.Item1));
+			var deficientTasks = new HashSet<ITask>(reconfigurations.Select(t => t.Item1));
+			if (deficientTasks.Count == 0)
+				return;
 
 			// stop work on deficient tasks
 			_resourceRequests.RemoveAll(request => deficientTasks.Contains(request.Role.Task));
 			// abort execution of current role if necessary
-			_deficientConfiguration = deficientTasks.Contains(_currentRole?.Task);
+			_deficientConfiguration = _hasRole && deficientTasks.Contains(_currentRole.Task);
 
 			// initiate reconfiguration to fix violations
 			ReconfigurationStrategy.Reconfigure(reconfigurations);
 		}
 
-		private Dictionary<TTask, IEnumerable<InvariantPredicate>> FindInvariantViolations()
+		private Dictionary<ITask, IEnumerable<InvariantPredicate>> FindInvariantViolations()
 		{
-			var violations = new Dictionary<TTask, IEnumerable<InvariantPredicate>>();
+			var violations = new Dictionary<ITask, IEnumerable<InvariantPredicate>>();
 			foreach (var predicate in MonitoringPredicates)
 			{
-				foreach (var violatingTask in predicate((TAgent)this))
+				foreach (var violatingTask in predicate(this))
 				{
 					if (!violations.ContainsKey(violatingTask))
 						violations.Add(violatingTask, new HashSet<InvariantPredicate>());
@@ -386,29 +330,21 @@ namespace SafetySharp.Odp
 			return violations;
 		}
 
-		public virtual void RequestReconfiguration(IAgent agent, TTask task)
+		public virtual void RequestReconfiguration(IAgent agent, ITask task)
 		{
 			PerformReconfiguration(new[] {
 				Tuple.Create(task, new State(this, agent))
 			});
 		}
 
-		public virtual void RemoveAllocatedRoles(TTask task)
-		{
-			for (int i = 0; i < AllocatedRoles.Count; ++i)
-			{
-				if (AllocatedRoles[i].Task == task)
-				{
-					AllocatedRoles.RemoveAt(i);
-					_applicationTimes.RemoveAt(i);
-				}
-			}
-		}
-
-		public virtual void AllocateRoles(params Role<TAgent, TTask>[] roles)
+		public virtual void AllocateRoles(params Role[] roles)
 		{
 			AllocatedRoles.AddRange(roles);
-			_applicationTimes.AddRange(Enumerable.Repeat(0u, roles.Length));
+		}
+
+		public virtual void RemoveAllocatedRoles(ITask task)
+		{
+			AllocatedRoles.RemoveAll(role => role.Task == task);
 		}
 
 		#endregion

@@ -29,17 +29,19 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 	using Odp;
 
 	/// <summary>
-	///   An <see cref="Odp.IController{Agent, Task}" /> implementation that is much faster than
+	///   An <see cref="IController" /> implementation that is much faster than
 	///   the MiniZinc implementation.
 	/// </summary>
-	internal class FastController : FastController<Agent, Task>
+	internal class FastController : Odp.FastController
 	{
-		[Hidden(HideElements = true)]
+		protected override bool PreferCapabilityAccumulation => false;
+
+		[NonDiscoverable, Hidden(HideElements = true)]
 		private readonly HashSet<CartAgent> _usedCarts = new HashSet<CartAgent>();
 
-		public FastController(IEnumerable<Agent> agents) : base(agents.ToArray()) { }
+		public FastController(IEnumerable<BaseAgent> agents) : base(agents.ToArray()) { }
 
-		public override Dictionary<Agent, IEnumerable<Role<Agent, Task>>> CalculateConfigurations(params Task[] tasks)
+		public override Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
 		{
 			_usedCarts.Clear();
 			return base.CalculateConfigurations(tasks);
@@ -59,13 +61,11 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 		private int GetPreferredCart(int suggestion, int previous, int destination)
 		{
-			var cart = _availableAgents[suggestion] as CartAgent;
 			var nextRobot = (RobotAgent)_availableAgents[_pathMatrix[suggestion, destination]];
 
 			var unusedCart = _availableAgents[previous].Outputs
 				.OfType<CartAgent>()
-				.Where(candidate => !_usedCarts.Contains(candidate) && candidate.Outputs.Contains(nextRobot))
-				.FirstOrDefault();
+				.FirstOrDefault(candidate => !_usedCarts.Contains(candidate) && candidate.Outputs.Contains(nextRobot));
 
 			if (unusedCart != null)
 			{

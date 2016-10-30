@@ -31,14 +31,14 @@ namespace SafetySharp.CaseStudies.PillProduction.Modeling
 	/// <summary>
 	///   A production station that modifies containers.
 	/// </summary>
-	public abstract class Station : BaseAgent<Station, Recipe>
+	public abstract class Station : BaseAgent
 	{
 		public readonly Fault CompleteStationFailure = new PermanentFault();
 
 		private static int _instanceCounter;
 		protected readonly string Name;
 
-		protected Station() : base()
+		protected Station()
 		{
 			Name = $"Station#{++_instanceCounter}";
 			FaultHelper.PrefixFaultNames(this, Name);
@@ -51,7 +51,7 @@ namespace SafetySharp.CaseStudies.PillProduction.Modeling
 		{
 			if (RecipeQueue.Count > 0)
 				PerformReconfiguration(new[] {
-					Tuple.Create(RecipeQueue.Dequeue(), new State(this))
+					Tuple.Create((ITask)RecipeQueue.Dequeue(), new State(this))
 				});
 
 			base.Update();
@@ -67,8 +67,15 @@ namespace SafetySharp.CaseStudies.PillProduction.Modeling
 
 		protected override void DropResource()
 		{
-			Container.Task.DropContainer(Container);
+			Container.Recipe.DropContainer(Container);
 			base.DropResource();
+		}
+
+		public override bool CanExecute(Role role)
+		{
+			if (role.CapabilitiesToApply.FirstOrDefault() is ProduceCapability)
+				return ((Recipe)role.Task).RemainingAmount > 0 && base.CanExecute(role);
+			return base.CanExecute(role);
 		}
 
 		protected override InvariantPredicate[] MonitoringPredicates => new[] {
@@ -97,7 +104,7 @@ namespace SafetySharp.CaseStudies.PillProduction.Modeling
 			RemoveAllocatedRoles(recipe);
 
 			foreach (var neighbour in affectedNeighbours)
-				neighbour.RemoveRecipeConfigurations(recipe);
+				(neighbour as Station).RemoveRecipeConfigurations(recipe);
 		}
 
 		/*[FaultEffect(Fault = nameof(CompleteStationFailure))]

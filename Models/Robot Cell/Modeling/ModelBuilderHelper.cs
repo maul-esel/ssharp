@@ -20,22 +20,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.PillProduction.Modeling
+namespace SafetySharp.CaseStudies.RobotCell.Modeling
 {
-	using System.Linq;
+	using System;
 	using Odp;
+	using Controllers;
 
-	internal class FastController : Odp.FastController
+	public static class ModelBuilderHelper
 	{
-		public FastController(params Station[] stations) : base(stations) { }
+		public static ICapability Produce => null; // HACK: ProduceCapability has model-specific constructor parameters, so use null as symbol
+		public static ICapability Insert => new ProcessCapability(ProductionAction.Insert);
+		public static ICapability Drill => new ProcessCapability(ProductionAction.Drill);
+		public static ICapability Tighten => new ProcessCapability(ProductionAction.Tighten);
+		public static ICapability Polish => new ProcessCapability(ProductionAction.Polish);
+		public static ICapability Consume => new ConsumeCapability();
 
-		// override necessary due to ingredient amounts
-		protected override bool CanSatisfyNext(ITask recipe, int[] path, int prefixLength, int station)
-		{
-			var capabilities = from index in Enumerable.Range(0, prefixLength + 1)
-							   where index == prefixLength || path[index] == station
-							   select recipe.RequiredCapabilities[index];
-			return capabilities.ToArray().IsSatisfiable(_availableAgents[station].AvailableCapabilities);
-		}
+		public static Tuple<int, int> Route(int from, int to) => Tuple.Create(from, to);
 	}
 }

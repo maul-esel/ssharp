@@ -20,22 +20,42 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.PillProduction.Modeling
+namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers.Reconfiguration
 {
-	using System.Linq;
+	using System.Collections.Generic;
+	using SafetySharp.Modeling;
 	using Odp;
 
-	internal class FastController : Odp.FastController
+	class IntolerableAnalysisController : Component, IController
 	{
-		public FastController(params Station[] stations) : base(stations) { }
+		public const int MaxSteps = 350;
 
-		// override necessary due to ingredient amounts
-		protected override bool CanSatisfyNext(ITask recipe, int[] path, int prefixLength, int station)
+		[Range(0, MaxSteps, OverflowBehavior.Clamp)]
+		public int StepCount { get; private set; }
+
+		private readonly IController _controller;
+
+		public IntolerableAnalysisController(IController controller)
 		{
-			var capabilities = from index in Enumerable.Range(0, prefixLength + 1)
-							   where index == prefixLength || path[index] == station
-							   select recipe.RequiredCapabilities[index];
-			return capabilities.ToArray().IsSatisfiable(_availableAgents[station].AvailableCapabilities);
+			_controller = controller;
+		}
+
+		public override void Update()
+		{
+			StepCount++;
+		}
+
+		public BaseAgent[] Agents => _controller.Agents;
+		public bool ReconfigurationFailure => _controller.ReconfigurationFailure;
+		public Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
+		{
+			if (ReconfigurationFailure)
+				return null;
+
+			if (StepCount >= MaxSteps)
+				return null;
+
+			return _controller.CalculateConfigurations(tasks);
 		}
 	}
 }

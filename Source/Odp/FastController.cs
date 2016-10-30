@@ -27,12 +27,10 @@ namespace SafetySharp.Odp
 	using System.Linq;
 	using Modeling;
 
-	public class FastController<TAgent, TTask> : AbstractController<TAgent, TTask>
-		where TAgent : BaseAgent<TAgent, TTask>
-		where TTask : class, ITask
+	public class FastController : AbstractController
 	{
 		[Hidden(HideElements = true)]
-		protected TAgent[] _availableAgents;
+		protected BaseAgent[] _availableAgents;
 
 		[Hidden(HideElements = true)]
 		protected int[,] _costMatrix;
@@ -40,12 +38,12 @@ namespace SafetySharp.Odp
 		[Hidden(HideElements = true)]
 		protected int[,] _pathMatrix;
 
-		public FastController(TAgent[] agents) : base(agents) { }
+		public FastController(BaseAgent[] agents) : base(agents) { }
 
-		public override Dictionary<TAgent, IEnumerable<Role<TAgent, TTask>>> CalculateConfigurations(params TTask[] tasks)
+		public override Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
 		{
 			_availableAgents = GetAvailableAgents();
-			var configs = new Dictionary<TAgent, IEnumerable<Role<TAgent, TTask>>>();
+			var configs = new Dictionary<BaseAgent, IEnumerable<Role>>();
 
 			CalculateShortestPaths();
 
@@ -61,7 +59,9 @@ namespace SafetySharp.Odp
 			return configs;
 		}
 
-		protected virtual TAgent[] GetAvailableAgents()
+		protected virtual bool PreferCapabilityAccumulation => true;
+
+		protected virtual BaseAgent[] GetAvailableAgents()
 		{
 			return Array.FindAll(Agents, agent => agent.IsAlive);
 		}
@@ -111,7 +111,7 @@ namespace SafetySharp.Odp
 			}
 		}
 
-		protected virtual int[] FindAgentPath(TTask task)
+		protected virtual int[] FindAgentPath(ITask task)
 		{
 			var path = new int[task.RequiredCapabilities.Length];
 
@@ -128,7 +128,7 @@ namespace SafetySharp.Odp
 			return null;
 		}
 
-		private bool FindAgentPath(TTask task, int[] path, int prefixLength)
+		private bool FindAgentPath(ITask task, int[] path, int prefixLength)
 		{
 			// termination case: the path is already complete
 			if (prefixLength == task.RequiredCapabilities.Length)
@@ -137,7 +137,7 @@ namespace SafetySharp.Odp
 			var last = path[prefixLength - 1];
 
 			// special handling: see if the last agent can't do the next capability as well
-			if (CanSatisfyNext(task, path, prefixLength, last)) // TODO: don't do this for robots, it requires switching tools
+			if (PreferCapabilityAccumulation && CanSatisfyNext(task, path, prefixLength, last))
 			{
 				path[prefixLength] = last;
 				if (FindAgentPath(task, path, prefixLength + 1))
@@ -148,7 +148,7 @@ namespace SafetySharp.Odp
 				for (int next = 0; next < _availableAgents.Length; ++next) // go through all agents
 				{
 					// if connected to last agent and can fulfill next capability
-					if (_pathMatrix[last, next] != -1 && CanSatisfyNext(task, path, prefixLength, next) && next != last)
+					if (_pathMatrix[last, next] != -1 && CanSatisfyNext(task, path, prefixLength, next))
 					{
 						path[prefixLength] = next; // try a path over next
 						if (FindAgentPath(task, path, prefixLength + 1)) // if there is such a path, return true
@@ -160,17 +160,17 @@ namespace SafetySharp.Odp
 			return false; // there is no valid path with the given prefix
 		}
 
-		protected virtual bool CanSatisfyNext(TTask task, int[] path, int prefixLength, int agent)
+		protected virtual bool CanSatisfyNext(ITask task, int[] path, int prefixLength, int agent)
 		{
 			return _availableAgents[agent].AvailableCapabilities.Contains(task.RequiredCapabilities[prefixLength]);
 		}
 
-		private void ExtractConfigurations(Dictionary<TAgent, IEnumerable<Role<TAgent, TTask>>> configs, TTask task, int[] agentPath)
+		private void ExtractConfigurations(Dictionary<BaseAgent, IEnumerable<Role>> configs, ITask task, int[] agentPath)
 		{
-			Action<TAgent, Role<TAgent, TTask>> addRole = (agent, addedRole) => {
+			Action<BaseAgent, Role> addRole = (agent, addedRole) => {
 				if (!configs.ContainsKey(agent))
-					configs.Add(agent, new HashSet<Role<TAgent, TTask>>());
-				(configs[agent] as HashSet<Role<TAgent, TTask>>).Add(addedRole);
+					configs.Add(agent, new HashSet<Role>());
+				(configs[agent] as HashSet<Role>).Add(addedRole);
 			};
 
 			var role = GetRole(task, null, null);
@@ -185,7 +185,7 @@ namespace SafetySharp.Odp
 				if (i + 1 < agentPath.Length && agentPath[i] != agentPath[i+1])
 				{
 					// configure the connecting agents
-					TAgent first, last;
+					BaseAgent first, last;
 					ConfigureConnection(agentPath[i], agentPath[i + 1], task, role.PostCondition, addRole, out first, out last);
 
 					// complete the current role
@@ -203,8 +203,8 @@ namespace SafetySharp.Odp
 
 		private void ConfigureConnection(
 			int from, int to,
-			TTask task, Condition<TAgent, TTask> initialCondition, Action<TAgent, Role<TAgent, TTask>> addRole,
-			out TAgent first, out TAgent last
+			ITask task, Condition initialCondition, Action<BaseAgent, Role> addRole,
+			out BaseAgent first, out BaseAgent last
 		)
 		{
 			var connection = GetShortestPath(from, to).ToArray();
@@ -214,7 +214,7 @@ namespace SafetySharp.Odp
 			first = _availableAgents[connection[1]];
 			last = _availableAgents[connection[connection.Length - 2]];
 
-			TAgent previous = _availableAgents[from];
+			BaseAgent previous = _availableAgents[from];
 
 			// for all agents between "from" and "to":
 			for (var i = 1; i < connection.Length - 1; ++i)
