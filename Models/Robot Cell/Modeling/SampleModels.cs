@@ -27,7 +27,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling
     using Odp.Reconfiguration;
     using static ModelBuilderHelper;
 
-    internal static class SampleModels
+    public static class SampleModels
     {
         public static Model DefaultInstance<T>(AnalysisMode mode = AnalysisMode.AllFaults)
             where T : IController

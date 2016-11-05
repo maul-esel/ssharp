@@ -42,6 +42,7 @@
       <HintPath>..\..\Dependencies\MahApps.Metro.1.1.3-ALPHA028\lib\net45\MahApps.Metro.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Microsoft.Expression.Drawing, Version=4.5.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="Microsoft.CSharp" />
@@ -62,6 +63,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="CartControl.xaml.cs">
+      <DependentUpon>CartControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="HeightControlSystem.xaml.cs">
       <DependentUpon>HeightControlSystem.xaml</DependentUpon>
     </Compile>
@@ -84,6 +88,19 @@
     <Compile Include="PressureTank.xaml.cs">
       <DependentUpon>PressureTank.xaml</DependentUpon>
     </Compile>
+    <Compile Include="RobotCell.xaml.cs">
+      <DependentUpon>RobotCell.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="RobotControl.xaml.cs">
+      <DependentUpon>RobotControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="WorkpieceControl.xaml.cs">
+      <DependentUpon>WorkpieceControl.xaml</DependentUpon>
+    </Compile>
+    <Page Include="CartControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="HeightControlSystem.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -124,6 +141,18 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="RobotCell.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="RobotControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="WorkpieceControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
@@ -151,6 +180,10 @@
     <Resource Include="Resources\Entypo.ttf" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Source\Odp\Odp.csproj">
+      <Project>{56f7aec6-842d-4dfc-a217-51623facf1f0}</Project>
+      <Name>Odp</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Source\SafetySharp\SafetySharp.csproj">
       <Project>{9b6c1fb4-3f1b-43ac-a0e0-eaed4088bf37}</Project>
       <Name>SafetySharp</Name>
@@ -170,6 +203,10 @@
     <ProjectReference Include="..\Pressure Tank\Pressure Tank.csproj">
       <Project>{2834343c-5d3a-4673-9f58-f869f4e3cc01}</Project>
       <Name>Pressure Tank</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Robot Cell\Robot Cell.csproj">
+      <Project>{07deade8-4700-4f51-af54-ee88878c0127}</Project>
+      <Name>Robot Cell</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
