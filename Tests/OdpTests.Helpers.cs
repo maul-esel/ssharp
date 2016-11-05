@@ -20,44 +20,43 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace Tests.Normalization.LiftedExpressions.Lifted
+namespace Tests
 {
-	using System;
-	using SafetySharp.CompilerServices;
+	using System.Collections.Generic;
+	using SafetySharp.Odp;
+	using Utilities;
+	using Xunit.Abstractions;
+	using JetBrains.Annotations;
 
-	internal class Test9
+	public partial class OdpTests : Tests
 	{
-		public Test9 T([LiftExpression] int i)
+		public OdpTests(ITestOutputHelper output)
+			: base(output)
 		{
-			return this;
 		}
 
-		public Test9 T(Func<int> i)
+		[UsedImplicitly]
+		public static IEnumerable<object[]> DiscoverTests(string directory)
 		{
-			return this;
-		}
-
-		public Test9 S(int i)
-		{
-			return this;
+			return EnumerateTestCases(GetAbsoluteTestsDirectory(directory));
 		}
 	}
 
-	internal class In9
+	internal abstract class Agent : BaseAgent
 	{
-		private void M()
-		{
-			var t = new Test9();
-			t.T(3).S(9).T(17 + 1 / 2);
-		}
+		public const int MaxCapabilityCount = 20;
+		public readonly List<ICapability> Capabilities = new List<ICapability>(20);
+
+		public override IEnumerable<ICapability> AvailableCapabilities => Capabilities;
 	}
 
-	internal class Out9
+	internal class Task : ITask
 	{
-		private void M()
+		public Task(params ICapability[] capabilities)
 		{
-			var t = new Test9();
-			t.T(() => 3).S(9).T(() => 17 + 1 / 2);
+			RequiredCapabilities = capabilities;
 		}
+
+		public ICapability[] RequiredCapabilities { get; }
 	}
 }

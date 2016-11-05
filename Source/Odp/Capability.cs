@@ -20,19 +20,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace Tests.Normalization.LiftedExpressions.Unlifted
+namespace SafetySharp.Odp
 {
-	using SafetySharp.Modeling;
+	using System;
 
-	internal class In2 : Component
+	public abstract class Capability<T> : ICapability
+		where T : Capability<T>
 	{
-		private In2(int i)
+		public void Execute(BaseAgent agent)
 		{
+			var handler = agent as ICapabilityHandler<T>;
+			if (handler == null)
+				throw new InvalidOperationException($"Agent of type {agent.GetType().Name} cannot handle capability of type {typeof(T).Name}");
+			handler.ApplyCapability((T)this);
 		}
 
-		private void M()
-		{
-			new In2(1);
-		}
+		public abstract CapabilityType CapabilityType { get; }
 	}
 }

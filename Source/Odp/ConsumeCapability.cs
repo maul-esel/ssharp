@@ -22,45 +22,12 @@
 
 namespace SafetySharp.Odp
 {
-	using System.Collections.Generic;
-	using Modeling;
-
-	public abstract class AbstractController : IController
+	public sealed class ConsumeCapability : Capability<ConsumeCapability>
 	{
-		[Hidden(HideElements = true)]
-		public BaseAgent[] Agents { get; }
+		public override CapabilityType CapabilityType => CapabilityType.Consume;
 
-		protected AbstractController(BaseAgent[] agents)
-		{
-			Agents = agents;
-		}
+		public override bool Equals(object obj) => obj is ConsumeCapability;
 
-		public virtual bool ReconfigurationFailure
-		{
-			get;
-			protected set;
-		}
-
-		public abstract Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks);
-
-		protected Role GetRole(ITask recipe, BaseAgent input, Condition? previous)
-		{
-			var role = new Role()
-			{
-				PreCondition = { Task = recipe, Port = input },
-				PostCondition = { Task = recipe, Port = null }
-			};
-
-			role.PreCondition.ResetState();
-			role.PostCondition.ResetState();
-
-			if (previous != null)
-				role.PreCondition.CopyStateFrom(previous.Value);
-			role.PostCondition.CopyStateFrom(role.PreCondition);
-
-			role.Clear();
-
-			return role;
-		}
+		public override int GetHashCode() => 31;
 	}
 }

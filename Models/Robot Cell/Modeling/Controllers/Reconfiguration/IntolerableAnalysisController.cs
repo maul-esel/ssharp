@@ -22,9 +22,10 @@
 
 namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers.Reconfiguration
 {
-	using System.Collections.Generic;
+	using System;
 	using SafetySharp.Modeling;
 	using Odp;
+	using Odp.Reconfiguration;
 
 	class IntolerableAnalysisController : Component, IController
 	{
@@ -45,9 +46,15 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers.Reconfiguration
 			StepCount++;
 		}
 
+		public event Action<BaseAgent[]> ConfigurationsCalculated
+		{
+			add { _controller.ConfigurationsCalculated += value; }
+			remove { _controller.ConfigurationsCalculated -= value; }
+		}
+
 		public BaseAgent[] Agents => _controller.Agents;
 		public bool ReconfigurationFailure => _controller.ReconfigurationFailure;
-		public Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
+		public ConfigurationUpdate CalculateConfigurations(params ITask[] tasks)
 		{
 			if (ReconfigurationFailure)
 				return null;

@@ -22,9 +22,10 @@
 
 namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers.Reconfiguration
 {
-	using System.Collections.Generic;
+	using System;
 	using SafetySharp.Modeling;
 	using Odp;
+	using Odp.Reconfiguration;
 
 	class FaultyController : Component, IController
 	{
@@ -38,9 +39,14 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers.Reconfiguration
 		protected FaultyController() { }
 
 		// composition
+		public event Action<BaseAgent[]> ConfigurationsCalculated
+		{
+			add { _controller.ConfigurationsCalculated += value; }
+			remove { _controller.ConfigurationsCalculated -= value; }
+		}
 		public BaseAgent[] Agents => _controller.Agents;
 		public virtual bool ReconfigurationFailure =>_controller.ReconfigurationFailure;
-		public virtual Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
+		public virtual ConfigurationUpdate CalculateConfigurations(params ITask[] tasks)
 		{
 			return _controller.CalculateConfigurations(tasks);
 		}
@@ -53,7 +59,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers.Reconfiguration
 		{
 			public override bool ReconfigurationFailure => true;
 
-			public override Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
+			public override ConfigurationUpdate CalculateConfigurations(params ITask[] tasks)
 			{
 				return null;
 			}

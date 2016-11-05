@@ -20,44 +20,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.Odp
+namespace SafetySharp.Odp.Reconfiguration
 {
 	using System;
-	using System.Collections.Generic;
-	using System.Linq;
 
-	public class CentralReconfiguration : IReconfigurationStrategy
+	// TODO: naming is ambiguous between "controller" (vs. "observer") and "controller" (vs. "plant")
+	public interface IController
 	{
-		protected readonly IController _controller;
+		BaseAgent[] Agents { get; }
 
-		public CentralReconfiguration(IController controller)
-		{
-			_controller = controller;
-		}
+		ConfigurationUpdate CalculateConfigurations(params ITask[] tasks);
 
-		public virtual void Reconfigure(IEnumerable<Tuple<ITask, BaseAgent.State>> reconfigurations)
-		{
-			var tasks = reconfigurations.Select(tuple => tuple.Item1).ToArray();
+		bool ReconfigurationFailure { get; }
 
-			var configs = _controller.CalculateConfigurations(tasks);
-			if (configs != null)
-			{
-				RemoveConfigurations(tasks);
-				ApplyConfigurations(configs);
-			}
-		}
-
-		protected virtual void RemoveConfigurations(params ITask[] tasks)
-		{
-			foreach (var agent in _controller.Agents)
-				foreach (var task in tasks)
-					agent.RemoveAllocatedRoles(task);
-		}
-
-		protected virtual void ApplyConfigurations(Dictionary<BaseAgent, IEnumerable<Role>> configurations)
-		{
-			foreach (var agent in configurations.Keys)
-				agent.AllocateRoles(configurations[agent].ToArray());
-		}
+		event Action<BaseAgent[]> ConfigurationsCalculated;
 	}
 }

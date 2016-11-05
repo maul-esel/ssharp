@@ -20,10 +20,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.Odp
+namespace SafetySharp.Odp.Reconfiguration
 {
 	using System;
-	using System.Collections.Generic;
 	using System.IO;
 	using System.Linq;
 	using Modeling;
@@ -45,11 +44,12 @@ namespace SafetySharp.Odp
 			_constraintsModel = constraintsModel;
 		}
 
-		public override Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
+		public override ConfigurationUpdate CalculateConfigurations(params ITask[] tasks)
 		{
-			var configs = new Dictionary<BaseAgent, IEnumerable<Role>>();
+			var configs = new ConfigurationUpdate();
 			foreach (var task in tasks)
 			{
+				configs.RemoveAllRoles(task, Agents);
 				lock(MiniZinc)
 				{
 					CreateDataFile(task);
@@ -57,6 +57,8 @@ namespace SafetySharp.Odp
 					ParseConfigurations(configs, task);
 				}
 			}
+
+			OnConfigurationsCalculated(configs);
 			return configs;
 		}
 
@@ -98,7 +100,7 @@ namespace SafetySharp.Odp
 			}
 		}
 
-		private void ParseConfigurations(Dictionary<BaseAgent, IEnumerable<Role>> configs, ITask task)
+		private void ParseConfigurations(ConfigurationUpdate configs, ITask task)
 		{
 			var lines = File.ReadAllLines(_outputFile);
 			if (lines[0].Contains("UNSATISFIABLE"))
@@ -122,16 +124,16 @@ namespace SafetySharp.Odp
 				role = GetRole(task, lastAgent, lastAgent == null ? null : (Condition?)role.PostCondition);
 
 				// collect capabilities for the current agent into one role
-				for (var current = agentIds[i]; current == agentIds[i]; ++i)
+				for (var current = agentIds[i]; i < agentIds.Length && current == agentIds[i]; ++i)
 				{
 					if (capabilityIds[i] >= 0)
-						role.AddCapability(task.RequiredCapabilities[capabilityIds[i]]);
+					{
+						var capability = task.RequiredCapabilities[capabilityIds[i]];
+						role.AddCapability(capability);
+					}
 				}
 
-				if (!configs.ContainsKey(agent))
-					configs.Add(agent, new HashSet<Role>());
-				(configs[agent] as HashSet<Role>).Add(role);
-
+				configs.AddRoles(agent, role);
 				lastAgent = agent;
 			}
 		}

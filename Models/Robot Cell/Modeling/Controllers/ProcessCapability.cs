@@ -26,14 +26,16 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 	using Odp;
 
 	[DebuggerDisplay("Process: {ProductionAction}")]
-	internal class ProcessCapability : ICapability
+	internal class ProcessCapability : Capability<ProcessCapability>
 	{
 		public ProcessCapability(ProductionAction productionAction)
 		{
 			ProductionAction = productionAction;
 		}
 
-        public ProductionAction ProductionAction { get; }
+		public override CapabilityType CapabilityType => CapabilityType.Process;
+
+		public ProductionAction ProductionAction { get; }
 
 		public override bool Equals(object obj)
 		{

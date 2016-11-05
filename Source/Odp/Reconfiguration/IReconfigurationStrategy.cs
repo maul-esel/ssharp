@@ -20,34 +20,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
+namespace SafetySharp.Odp.Reconfiguration
 {
+	using System;
 	using System.Collections.Generic;
-	using System.Diagnostics;
-	using System.Linq;
-	using SafetySharp.Modeling;
-	using Odp;
 
-	[DebuggerDisplay("Produce")]
-	internal class ProduceCapability : ICapability
+	public interface IReconfigurationStrategy
 	{
-		public ProduceCapability(List<Resource> resources, List<Task> tasks)
-		{
-			Resources = resources;
-			Tasks = tasks;
-		}
-
-		public List<Resource> Resources { get; }
-
-		[Hidden(HideElements = true)]
-		public List<Task> Tasks { get; }
-
-		public override bool Equals(object obj)
-		{
-			var produce = obj as ProduceCapability;
-			return produce != null && Tasks.SequenceEqual(produce.Tasks);
-		}
-
-		public override int GetHashCode() => 57;
+		void Reconfigure(IEnumerable<Tuple<ITask, BaseAgent.State>> reconfigurations);
 	}
 }

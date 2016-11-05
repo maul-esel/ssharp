@@ -41,23 +41,31 @@ namespace SafetySharp.Odp
 
 		public static IEnumerable<ITask> ResourceConsistency(BaseAgent agent)
 		{
-			/* if (agent.Resource != null
-				&& !agent.AllocatedRoles.Any(role => role.PreCondition.Task == agent.Resource.Task
-					&& role.PreCondition.State.SequenceEqual(agent.Resource.State)))*/
+			/* Condition Versions:
+			 *
+			 * originally:
+			 *
+			 agent.Resource != null
+				&& !agent.AllocatedRoles.Any(role => !role.IsLocked && role.PreCondition.Task == agent.Resource.Task
+					&& role.PreCondition.State.SequenceEqual(agent.Resource.State))
+			 *
+			 * weaker version:
+			 *
+			 agent.Resource != null
+				&& !agent.AllocatedRoles.Any(role =>
+					!role.IsLocked
+					&& role.PreCondition.Task == agent.Resource.Task
+					&& role.PreCondition.State.IsPrefixOf(agent.Resource.State)
+					&& agent.Resource.State.IsPrefixOf(role.PostCondition.State))
+			 * */
 			if (agent.Resource != null
 				&& !agent.AllocatedRoles.Any(role =>
-					role.PreCondition.Task == agent.Resource.Task
-					&& role.PreCondition.State.IsPrefixOf(agent.Resource.State)
-					&& agent.Resource.State.IsPrefixOf(role.PostCondition.State)))
+					!role.IsLocked
+					&& role.Task == agent.Resource.Task
+					&& role.ExecutionState.SequenceEqual(agent.Resource.State)))
 				return new[] { agent.Resource.Task };
 
 			return Enumerable.Empty<ITask>();
-		}
-
-		private static bool IsPrefixOf<T>(this IEnumerable<T> prefix, IEnumerable<T> sequence)
-		{
-			return prefix.Count() <= sequence.Count()
-				   && prefix.Zip(sequence, (a, b) => Equals(a, b)).All(b => b);
 		}
 
 		public static IEnumerable<ITask> CapabilityConsistency(BaseAgent agent)
@@ -76,14 +84,16 @@ namespace SafetySharp.Odp
 					// consistent input:
 					(role.PreCondition.Port == null // no input...
 					|| role.PreCondition.Port.AllocatedRoles.Exists( // ... or there's a matching role at the input
-						sendingRole => sendingRole.PostCondition.StateMatches(role.PreCondition)
+						sendingRole => !sendingRole.IsLocked
+							&& sendingRole.PostCondition.StateMatches(role.PreCondition)
 							&& sendingRole.PostCondition.Port == agent
 						)
 					)
 					// consistent output:
 					&& (role.PostCondition.Port == null // no output...
 					|| role.PostCondition.Port.AllocatedRoles.Exists( // ... or there's a matching role at the output
-						receivingRole => receivingRole.PreCondition.StateMatches(role.PostCondition)
+						receivingRole => !receivingRole.IsLocked
+							&& receivingRole.PreCondition.StateMatches(role.PostCondition)
 							&& receivingRole.PreCondition.Port == agent
 						)
 					)

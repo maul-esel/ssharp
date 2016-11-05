@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.Odp
+namespace SafetySharp.Odp.Reconfiguration
 {
 	using System.Collections.Generic;
 	using System.Linq;
@@ -78,9 +78,9 @@ namespace SafetySharp.Odp
 			}
 		}
 
-		public void UpdateAllocatedRoles(Role[] newRoles)
+		public void UpdateAllocatedRoles(ConfigurationUpdate config)
 		{
-			_reconfAgentHandler.UpdateAllocatedRoles(_task, newRoles);
+			_reconfAgentHandler.UpdateAllocatedRoles(config);
 		}
 
 		public void Go(ITask task)
@@ -146,14 +146,10 @@ namespace SafetySharp.Odp
 					from: State.CalculateRoles,
 					to: State.AllocateRoles,
 					guard: configs != null,
-					action: () => {
-						var emptyRoles = new Role[0];
-						foreach (var agent in _functioningAgents)
-						{
-							_reconfAgents[agent.ID].UpdateAllocatedRoles(
-								configs.ContainsKey(agent) ? configs[agent].ToArray() : emptyRoles
-							);
-						}
+					action: () =>
+					{
+						foreach (var agent in _reconfAgents.Values)
+							agent.UpdateAllocatedRoles(configs);
 					}
 				);
 			}

@@ -22,8 +22,9 @@
 
 namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers.Reconfiguration
 {
-	using System.Collections.Generic;
+	using System;
 	using Odp;
+	using Odp.Reconfiguration;
 
 	public class TolerableAnalysisController : IController
 	{
@@ -36,9 +37,15 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers.Reconfiguration
 			_controller = controller;
 		}
 
+		public event Action<BaseAgent[]> ConfigurationsCalculated
+		{
+			add { _controller.ConfigurationsCalculated += value; }
+			remove { _controller.ConfigurationsCalculated -= value; }
+		}
+
 		public BaseAgent[] Agents => _controller.Agents;
 		public bool ReconfigurationFailure => _controller.ReconfigurationFailure;
-		public Dictionary<BaseAgent, IEnumerable<Role>> CalculateConfigurations(params ITask[] tasks)
+		public ConfigurationUpdate CalculateConfigurations(params ITask[] tasks)
 		{
 			if (ReconfigurationFailure)
 				return null;

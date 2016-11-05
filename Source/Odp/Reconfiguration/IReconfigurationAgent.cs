@@ -20,85 +20,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace Tests.Normalization.LiftedExpressions.Lifted
+namespace SafetySharp.Odp.Reconfiguration
 {
-	using System;
-	using System.Linq.Expressions;
-	using SafetySharp.CompilerServices;
-
-	internal class Test5
+	public interface IReconfigurationAgent : IAgent
 	{
-		public Test5()
-		{
-		}
-
-		public Test5([LiftExpression] int i)
-		{
-		}
-
-		public Test5(Expression<Func<int>> i)
-		{
-		}
-
-		protected int M(int i)
-		{
-			return 0;
-		}
-
-		protected int N([LiftExpression] int i)
-		{
-			return 0;
-		}
-
-		protected int N(Expression<Func<int>> i)
-		{
-			return 0;
-		}
-
-		protected int O([LiftExpression] int i, [LiftExpression] int j)
-		{
-			return 0;
-		}
-
-		protected int O(Expression<Func<int>> i, Expression<Func<int>> j)
-		{
-			return 0;
-		}
-	}
-
-	[CheckTrivia(TriviaType.All)]
-	internal class In5 : Test5
-	{
-		private void M()
-		{
-			new Test5(1
-					  + 1);
-
-			O(M(2 -
-				1)
-			  + 0,
-				3
-				- N(
-					2 *
-					5));
-		}
-	}
-
-	[CheckTrivia(TriviaType.All)]
-	internal class Out5 : Test5
-	{
-		private void M()
-        {
-            new Test5(()=>1
-                      + 1);
-
-            O(()=>M(2 -
-                1)
-              + 0,
-                ()=>                3
-                - N(
-                    ()=>                    2 *
-                    5));
-        }
+		void StartReconfiguration(ITask task, IAgent agent, BaseAgent.State baseAgentState);
+		void Acknowledge();
 	}
 }

@@ -20,38 +20,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace Tests.Normalization.LiftedExpressions.Lifted
+namespace Tests.Execution.Simulation
 {
-	using System;
-	using System.Linq.Expressions;
-	using SafetySharp.CompilerServices;
+	using Shouldly;
+	using Utilities;
+	using SafetySharp.Modeling;
 
-	internal class Test1
+	public class ImplementsInterface : TestObject
 	{
-		protected void N([LiftExpression] int i)
+		protected override void Check()
 		{
+			var c = new C();
+			c.ShouldBeAssignableTo<I>();
+
+			var e = new E();
+			e.ShouldBeAssignableTo<I>();
 		}
 
-		protected void N(Expression<Func<int>> i)
-		{
-		}
-	}
+		private interface I { }
 
-	internal class In1 : Test1
-	{
-		private void Q()
-		{
-			N(1);
-			N(1 + 3 / 54 + (true == false ? 17 : 33 + 1));
-		}
-	}
+		private class C : Component, I { }
 
-	internal class Out1 : Test1
-	{
-		private void Q()
+		private class D : Component
 		{
-			N(() => 1);
-			N(() => 1 + 3 / 54 + (true == false ? 17 : 33 + 1));
+			public readonly Fault F = new PermanentFault();
+
+			[FaultEffect(Fault = nameof(F))]
+			public class FEffect : D { }
 		}
+
+		// class that "inherits from fault effect" and implements interface
+		// compiled version should still implement interface
+		private class E : D, I { }
 	}
 }

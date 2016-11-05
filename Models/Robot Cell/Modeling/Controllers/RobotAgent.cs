@@ -22,12 +22,14 @@
 
 namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 {
+	using System;
+	using System.Collections.Generic;
 	using System.Linq;
 	using Plants;
 	using SafetySharp.Modeling;
 	using Odp;
 
-	public class RobotAgent : Agent
+	public class RobotAgent : Agent, ICapabilityHandler<ProduceCapability>, ICapabilityHandler<ProcessCapability>, ICapabilityHandler<ConsumeCapability>
 	{
 		public readonly Fault Broken = new TransientFault();
 		public readonly Fault ResourceTransportFault = new TransientFault();
@@ -41,10 +43,16 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 		private ICapability _currentCapability;
 
-		public RobotAgent(ICapability[] capabilities, Robot robot)
+		[Hidden(HideElements = true)]
+		private readonly List<Task> _tasks;
+		private readonly List<Resource> _resources;
+
+		public RobotAgent(ICapability[] capabilities, Robot robot, List<Task> tasks, List<Resource> resources)
 			: base(capabilities)
 		{
 			Robot = robot;
+			_tasks = tasks;
+			_resources = resources;
 
 			Broken.Name = $"{Name}.{nameof(Broken)}";
 			ResourceTransportFault.Name = $"{Name}.{nameof(ResourceTransportFault)}";
@@ -60,11 +68,10 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 		protected override void DropResource()
 		{
-			_currentCapability = null;
-			base.DropResource();
-
 			// For now, the resource disappears magically...
 			Robot?.DiscardWorkpiece();
+
+			base.DropResource();
 		}
 
 		protected override bool CheckInput(Agent agent)
@@ -131,26 +138,32 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 		{
 			if (role.CapabilitiesToApply.FirstOrDefault() is ProduceCapability)
 			{
-				var capability = (ProduceCapability)role.CapabilitiesToApply.First();
-				return (capability.Resources.Count > 0 && !capability.Tasks.Any(task => task.IsResourceInProduction))
+				var availableResourceCount = _resources.Count(resource => resource.Task == role.Task);
+				return availableResourceCount > 0
+					   && !_tasks.Any(task => task.IsResourceInProduction)
 					   && base.CanExecute(role);
 			}
 			return base.CanExecute(role);
 		}
 
-		public override void Produce(ProduceCapability capability)
+		public void ApplyCapability(ProduceCapability capability)
 		{
-			Resource = capability.Resources[0];
-			capability.Resources.RemoveAt(0);
+			var index = _resources.FindIndex(resource => resource.Task == _currentRole.Task);
+			if (index == -1)
+				throw new InvalidOperationException("All resources for this task have already been produced");
+
+			Resource = _resources[index];
+			_resources.RemoveAt(index);
+
 			(Resource.Task as Task).IsResourceInProduction = true;
 			Robot?.ProduceWorkpiece((Resource as Resource).Workpiece);
 			Resource.OnCapabilityApplied(capability);
 		}
 
-		public override void Process(ProcessCapability capability)
+		public void ApplyCapability(ProcessCapability capability)
 		{
 			if (Resource == null)
-				return;
+				throw new InvalidOperationException("Cannot process when no resource available");
 
 			if (!Equals(_currentCapability, capability))
 			{
@@ -175,10 +188,10 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 			}
 		}
 
-		public override void Consume(ConsumeCapability capability)
+		public void ApplyCapability(ConsumeCapability capability)
 		{
 			if (Resource == null)
-				return;
+				throw new InvalidOperationException("Cannot consume when no resource available");
 
 			Resource.OnCapabilityApplied(capability);
 			Robot?.ConsumeWorkpiece();

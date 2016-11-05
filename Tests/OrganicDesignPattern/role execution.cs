@@ -20,51 +20,65 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace Tests.Serialization.Ranges
+namespace Tests.OrganicDesignPattern
 {
-	using System;
+	using SafetySharp.Analysis;
 	using SafetySharp.Modeling;
-	using SafetySharp.Runtime.Serialization;
+	using SafetySharp.Odp;
 	using Shouldly;
+	using Utilities;
 
-	internal class Enum : SerializationObject
+	internal class RoleExecution : TestObject
 	{
 		protected override void Check()
 		{
-			var c = new C { F = F.A, E = E.B };
+			var capabilities = new[] {
+				new C() { Action = 12 },
+				new C() { Action = 4 },
+				new C() { Action = -3 }
+			};
 
-			GenerateCode(SerializationMode.Optimized, c);
+			var t = new Task(capabilities);
+			var r = new Role() { PreCondition = { Task = t }, PostCondition = { Task = t } };
 
-			Serialize();
-			c.E = E.A;
-			c.F = F.B;
-			Deserialize();
-			c.E.ShouldBe(E.B);
-			c.F.ShouldBe(F.A);
+			foreach (var c in capabilities)
+				r.AddCapability(c);
+
+			var a = new A();
+			a.Capabilities.AddRange(capabilities);
+			a.AllocatedRoles.Add(r);
+
+			var simulator = new Simulator(TestModel.InitializeModel(a));
+			simulator.Model.Faults.SuppressActivations();
+			a = (A)simulator.Model.Roots[0];
+
+			simulator.FastForward(steps: 2); // role selection
+			a.LastAction.ShouldBe(0);
+
+			simulator.SimulateStep();
+			a.LastAction.ShouldBe(capabilities[0].Action);
+
+			simulator.SimulateStep();
+			a.LastAction.ShouldBe(capabilities[1].Action);
+
+			simulator.SimulateStep();
+			a.LastAction.ShouldBe(capabilities[2].Action);
 		}
 
-		internal class C
+		private class A : Agent, ICapabilityHandler<C>
 		{
-			public E E;
-			public F F;
+			public int LastAction = 0;
 
-			public C()
+			public void ApplyCapability(C capability)
 			{
-				Should.Throw<ArgumentException>(() => Range.Restrict(() => F, F.A, F.B, OverflowBehavior.Error));
+				LastAction = capability.Action;
 			}
 		}
 
-		internal enum E
+		private class C : Capability<C>
 		{
-			A,
-			B
-		}
-
-		[Flags]
-		internal enum F
-		{
-			A,
-			B
+			public int Action;
+			public override CapabilityType CapabilityType => CapabilityType.Process;
 		}
 	}
 }

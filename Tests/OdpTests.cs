@@ -20,11 +20,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace SafetySharp.Odp
+namespace Tests
 {
-	public interface IReconfigurationAgent : IAgent
+	using Xunit;
+
+	public partial class OdpTests
 	{
-		void StartReconfiguration(ITask task, IAgent agent, BaseAgent.State baseAgentState);
-		void Acknowledge();
+		[Theory, MemberData(nameof(DiscoverTests), "OrganicDesignPattern")]
+		public void Odp(string test, string file)
+		{
+			ExecuteDynamicTests(file);
+		}
 	}
 }

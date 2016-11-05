@@ -20,54 +20,27 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace Tests.Normalization.LiftedExpressions.Lifted
+namespace SafetySharp.Odp.Reconfiguration
 {
 	using System;
-	using System.Linq.Expressions;
-	using SafetySharp.CompilerServices;
+	using System.Collections.Generic;
+	using System.Linq;
 
-	internal class Test3
+	public class CentralReconfiguration : IReconfigurationStrategy
 	{
-		protected void N([LiftExpression] int i, [LiftExpression] bool j, [LiftExpression] int k)
+		protected readonly IController _controller;
+
+		public CentralReconfiguration(IController controller)
 		{
+			_controller = controller;
 		}
 
-		protected void N(Expression<Func<int>> i, Expression<Func<bool>> j, Expression<Func<int>> k)
+		public virtual void Reconfigure(IEnumerable<Tuple<ITask, BaseAgent.State>> reconfigurations)
 		{
-		}
+			var tasks = reconfigurations.Select(tuple => tuple.Item1).ToArray();
 
-		protected void P(int i, [LiftExpression] bool j, int k)
-		{
-		}
-
-		protected void P(int i, Expression<Func<bool>> j, int k)
-		{
-		}
-	}
-
-	internal class In3 : Test3
-	{
-		private void Q(int x)
-		{
-			N(1, true, 4);
-			N(1 + x / 54 + (true == false ? 17 : 33 + 1), 3 > 5 ? true : false, 33 + 11 / x);
-
-			P(1, true, 17);
-			P(1, true || false, 33 << 2);
-			P(1 - 0, false, 22 / 2);
-		}
-	}
-
-	internal class Out3 : Test3
-	{
-		private void Q(int x)
-		{
-			N(() => 1, () => true, () => 4);
-			N(() => 1 + x / 54 + (true == false ? 17 : 33 + 1), () => 3 > 5 ? true : false, () => 33 + 11 / x);
-
-			P(1, () => true, 17);
-			P(1, () => true || false, 33 << 2);
-			P(1 - 0, () => false, 22 / 2);
+			var configs = _controller.CalculateConfigurations(tasks);
+			configs?.Apply(_controller.Agents);
 		}
 	}
 }

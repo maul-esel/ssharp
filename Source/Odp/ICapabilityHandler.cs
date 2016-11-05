@@ -20,37 +20,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace Tests.Normalization.LiftedExpressions.Unlifted
+namespace SafetySharp.Odp
 {
-	using SafetySharp.Modeling;
-
-	internal class In1 : Component
+	public interface ICapabilityHandler<T> where T : ICapability
 	{
-		private int M(int i)
-		{
-			return 1;
-		}
-
-		private void Q(int i, bool b)
-		{
-		}
-
-		private void N()
-		{
-		}
-
-		In1 C()
-		{
-			return this;
-		}
-
-		private void Q()
-		{
-			M(1);
-			Q(1, true);
-			N();
-			C().C().C();
-			new In1 { };
-		}
+		void ApplyCapability(T capability);
 	}
 }

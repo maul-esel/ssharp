@@ -20,46 +20,48 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace Tests.Normalization.LiftedExpressions.Lifted
+namespace SafetySharp.Odp.Reconfiguration
 {
 	using System;
-	using System.Linq.Expressions;
-	using SafetySharp.CompilerServices;
+	using Modeling;
 
-	internal class Test8
+	public abstract class AbstractController : IController
 	{
-		protected void N([LiftExpression] int i, [LiftExpression] bool j, [LiftExpression] int k)
+		[Hidden(HideElements = true)]
+		public BaseAgent[] Agents { get; }
+
+		public event Action<BaseAgent[]> ConfigurationsCalculated;
+
+		protected AbstractController(BaseAgent[] agents)
 		{
+			Agents = agents;
 		}
 
-		protected void N(Expression<Func<int>> i, Expression<Func<bool>> j, Expression<Func<int>> k)
+		public virtual bool ReconfigurationFailure
 		{
+			get;
+			protected set;
 		}
 
-		protected void P(int i, [LiftExpression] bool j, int k)
+		public abstract ConfigurationUpdate CalculateConfigurations(params ITask[] tasks);
+
+		protected Role GetRole(ITask recipe, BaseAgent input, Condition? previous)
 		{
+			var role = new Role()
+			{
+				PreCondition = { Task = recipe, Port = input },
+				PostCondition = { Task = recipe, Port = null }
+			};
+
+			if (previous != null)
+				role.Initialize(previous.Value);
+
+			return role;
 		}
 
-		protected void P(int i, Expression<Func<bool>> j, int k)
+		protected void OnConfigurationsCalculated(ConfigurationUpdate config)
 		{
-		}
-	}
-
-	internal class In8 : Test8
-	{
-		private void Q(int x)
-		{
-			N(k: 4, i: 1, j: true);
-			P(i: 1, k: 17, j: true);
-		}
-	}
-
-	internal class Out8 : Test8
-	{
-		private void Q(int x)
-		{
-			N(k: () => 4, i: () => 1, j: () => true);
-			P(i: 1, k: 17, j: () => true);
+			ConfigurationsCalculated?.Invoke(config.AffectedAgents);
 		}
 	}
 }

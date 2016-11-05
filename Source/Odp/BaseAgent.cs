@@ -83,7 +83,8 @@ namespace SafetySharp.Odp
 				guard: _hasRole && _deficientConfiguration,
 				action: () =>
 				{
-					DropResource();
+					if (Resource != null)
+						DropResource();
 					_hasRole = false;
 					_deficientConfiguration = false;
 				});
@@ -134,8 +135,6 @@ namespace SafetySharp.Odp
 		{
 			Resource = null;
 		}
-
-		public abstract void ApplyCapability(ICapability capability);
 
 		private void ChooseRole()
 		{
@@ -273,7 +272,7 @@ namespace SafetySharp.Odp
 		private bool _deficientConfiguration = false;
 
 		[Hidden]
-		public IReconfigurationStrategy ReconfigurationStrategy { get; set; }
+		public Reconfiguration.IReconfigurationStrategy ReconfigurationStrategy { get; set; }
 
 		protected virtual InvariantPredicate[] MonitoringPredicates { get; } = new InvariantPredicate[] {
 			Invariant.IOConsistency,
@@ -337,14 +336,15 @@ namespace SafetySharp.Odp
 			});
 		}
 
-		public virtual void AllocateRoles(params Role[] roles)
+		public virtual void AllocateRoles(IEnumerable<Role> roles)
 		{
 			AllocatedRoles.AddRange(roles);
 		}
 
-		public virtual void RemoveAllocatedRoles(ITask task)
+		public virtual void RemoveAllocatedRoles(IEnumerable<Role> roles)
 		{
-			AllocatedRoles.RemoveAll(role => role.Task == task);
+			foreach (var role in roles.ToArray())
+				AllocatedRoles.Remove(role);
 		}
 
 		#endregion

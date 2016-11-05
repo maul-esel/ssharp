@@ -28,7 +28,7 @@ namespace SafetySharp.Odp
 
 	public struct Role
 	{
-		public bool IsLocked { get; set; }
+		public bool IsLocked { get; private set; }
 
 		public Condition PreCondition;
 		public Condition PostCondition;
@@ -37,6 +37,9 @@ namespace SafetySharp.Odp
 
 		public IEnumerable<ICapability> CapabilitiesToApply =>
 			Task.RequiredCapabilities.Skip(_capabilitiesToApplyStart).Take(_capabilitiesToApplyCount);
+
+		public IEnumerable<ICapability> ExecutionState =>
+			Task.RequiredCapabilities.Take(_capabilitiesToApplyStart + _current);
 
 		private byte _capabilitiesToApplyStart;
 		private byte _capabilitiesToApplyCount;
@@ -50,7 +53,7 @@ namespace SafetySharp.Odp
 				throw new InvalidOperationException("The role has already been completely executed and must be reset.");
 
 			var capability = Task.RequiredCapabilities[_capabilitiesToApplyStart + _current];
-			agent.ApplyCapability(capability);
+			capability.Execute(agent);
 			_current++;
 		}
 
@@ -59,10 +62,11 @@ namespace SafetySharp.Odp
 			_current = 0;
 		}
 
-		public void Clear()
+		public void Initialize(Condition initialCondition)
 		{
+			PreCondition.CopyStateFrom(initialCondition);
+			PostCondition.CopyStateFrom(initialCondition);
 			_capabilitiesToApplyStart = checked((byte)PreCondition.State.Count());
-			_capabilitiesToApplyCount = 0;
 		}
 
 		public void AddCapability(ICapability capability)
@@ -72,11 +76,19 @@ namespace SafetySharp.Odp
 			if (!capability.Equals(Task.RequiredCapabilities[_capabilitiesToApplyStart + _capabilitiesToApplyCount]))
 				throw new InvalidOperationException("Cannot apply capability that is not required.");
 			_capabilitiesToApplyCount++;
+			PostCondition.AppendToState(capability);
 		}
 
 		public bool IsEmpty()
 		{
 			return _capabilitiesToApplyCount == 0;
+		}
+
+		public Role Lock(bool locked = true)
+		{
+			var role = this;
+			role.IsLocked = locked;
+			return role;
 		}
 	}
 }

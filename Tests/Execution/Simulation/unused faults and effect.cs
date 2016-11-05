@@ -20,69 +20,54 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace Tests.Normalization.LiftedExpressions.Lifted
+namespace Tests.Execution.Simulation
 {
-	using System;
-	using System.Linq.Expressions;
-	using SafetySharp.CompilerServices;
+	using SafetySharp.Analysis;
+	using SafetySharp.Modeling;
+	using Shouldly;
+	using Utilities;
 
-	internal class Test4
+	internal class UnusedFaultsAndEffects : TestObject
 	{
-		protected int M(int i)
+		protected override void Check()
 		{
-			return 0;
+			var simulator = new Simulator(TestModel.InitializeModel(new C()));
+			var c = (C)simulator.Model.Roots[0];
+
+			c.F.Activation = Activation.Forced;
+			simulator.SimulateStep();
+			c.X.ShouldBe(1);
+
+			c.F.Activation = Activation.Suppressed;
+			simulator.SimulateStep();
+			c.X.ShouldBe(1);
+
+			simulator.Model.Faults.ShouldBeEmpty();
 		}
 
-		protected int N([LiftExpression] int i)
+		private class C : Component
 		{
-			return 0;
-		}
+			public readonly Fault F = new TransientFault();
+			public int X;
 
-		protected int N(Expression<Func<int>> i)
-		{
-			return 0;
-		}
+			public virtual int Y => 1;
 
-		protected int O([LiftExpression] int i, [LiftExpression] int j)
-		{
-			return 0;
-		}
-
-		protected int O(Expression<Func<int>> i, Expression<Func<int>> j)
-		{
-			return 0;
-		}
-
-		protected int this[[LiftExpression] bool b] => 1;
-		protected int this[Func<bool> b] => 1;
-
-		internal class Class
-		{
-			public Class([LiftExpression] int i)
+			public override void Update()
 			{
+				X = Y;
 			}
 
-			public Class(Expression<Func<int>> i)
+			[FaultEffect, Priority(1)]
+			public class E1 : C
 			{
+				public override int Y => 71;
 			}
-		}
-	}
 
-	internal class In4 : Test4
-	{
-		private void M()
-		{
-			var a = new int[7];
-			new Class(O(M(1), N(17 + a[this[true]])));
-		}
-	}
-
-	internal class Out4 : Test4
-	{
-		private void M()
-		{
-			var a = new int[7];
-			new Class(() => O(() => M(1), () => N(() => 17 + a[this[() => true]])));
+			[FaultEffect, Priority(2)]
+			public class E2 : C
+			{
+				public override int Y => 1;
+			}
 		}
 	}
 }
