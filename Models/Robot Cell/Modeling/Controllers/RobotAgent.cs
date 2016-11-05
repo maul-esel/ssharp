@@ -228,7 +228,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 		}
 
 		[FaultEffect, Priority(5)]
-		internal class BrokenEffect : RobotAgent
+		public class BrokenEffect : RobotAgent
 		{
 			protected override bool ApplyCurrentCapability() => false;
 			protected override bool CanApply(ProcessCapability capability) => false;
@@ -240,7 +240,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 		}
 
 		[FaultEffect]
-		internal class ResourceTransportEffect : RobotAgent
+		public class ResourceTransportEffect : RobotAgent
 		{
 			protected override bool TakeResource(Cart cart) => false;
 			protected override bool PlaceResource(Cart cart) => false;
@@ -251,7 +251,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 		// TODO: a common base class for these effects would be nice (once S# supports it)
 		[FaultEffect, Priority(1)]
-		internal class DrillBrokenEffect : RobotAgent
+		public class DrillBrokenEffect : RobotAgent
 		{
 			protected override bool CanApply(ProcessCapability capability)
 				=> capability.ProductionAction != ProductionAction.Drill && base.CanApply(capability);
@@ -262,7 +262,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 		}
 
 		[FaultEffect, Priority(2)]
-		internal class InsertBrokenEffect : RobotAgent
+		public class InsertBrokenEffect : RobotAgent
 		{
 			protected override bool CanApply(ProcessCapability capability)
 				=> capability.ProductionAction != ProductionAction.Insert && base.CanApply(capability);
@@ -273,7 +273,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 		}
 
 		[FaultEffect, Priority(3)]
-		internal class TightenBrokenEffect : RobotAgent
+		public class TightenBrokenEffect : RobotAgent
 		{
 			protected override bool CanApply(ProcessCapability capability)
 				=> capability.ProductionAction != ProductionAction.Tighten && base.CanApply(capability);
@@ -284,7 +284,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 		}
 
 		[FaultEffect, Priority(4)]
-		internal class PolishBrokenEffect : RobotAgent
+		public class PolishBrokenEffect : RobotAgent
 		{
 			protected override bool CanApply(ProcessCapability capability)
 				=> capability.ProductionAction != ProductionAction.Polish && base.CanApply(capability);

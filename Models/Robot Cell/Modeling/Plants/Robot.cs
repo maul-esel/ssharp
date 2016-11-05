@@ -151,7 +151,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Plants
 		}
 
 		[FaultEffect, Priority(2)]
-		internal class BrokenEffect : Robot
+		public class BrokenEffect : Robot
 		{
 			public override bool ApplyCapability() => false;
 			public override bool CanApply(ProcessCapability capability) => false;
@@ -168,7 +168,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Plants
 		//}
 
 		[FaultEffect(Fault = nameof(SwitchToWrongToolFault)), Priority(1)]
-		internal class SwitchToWrongToolEffect : Robot
+		public class SwitchToWrongToolEffect : Robot
 		{
 			public override bool SwitchCapability(ProcessCapability capability)
 			{
@@ -178,7 +178,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Plants
 		}
 
 		[FaultEffect]
-		internal class ResourceTransportEffect : Robot
+		public class ResourceTransportEffect : Robot
 		{
 			public override bool TakeResource(Cart cart) => false;
 			public override bool PlaceResource(Cart cart) => false;

@@ -26,7 +26,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Plants
 	using SafetySharp.Modeling;
 
 	[DebuggerDisplay("{Robot1.Name} -> {Robot2.Name}")]
-	internal class Route : Component
+	public class Route : Component
 	{
 		public Fault Blocked = new TransientFault();
 
@@ -46,7 +46,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Plants
 		public virtual bool IsBlocked => false;
 
 		[FaultEffect(Fault = nameof(Blocked))]
-		internal class BlockedEffect : Route
+		public class BlockedEffect : Route
 		{
 			public override bool IsBlocked => true;
 		}
