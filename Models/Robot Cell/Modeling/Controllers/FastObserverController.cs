@@ -42,6 +42,8 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 		[Hidden(HideElements = true)]
 		private int[,] _pathMatrix;
 
+		public static MonitoringHeuristic MonitoringHeuristic { get; set; }
+
 		public FastObserverController(IEnumerable<Agent> agents, List<Task> tasks)
 			: base(agents, tasks)
 		{
@@ -75,6 +77,8 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 					throw new Exception("Reconfiguration successful even though there is no valid configuration.");
 				ReconfigurationState = ReconfStates.Succedded;
 			}
+
+			MonitoringHeuristic?.ReportReconfiguration(Agents);
 		}
 
 		/// <summary>

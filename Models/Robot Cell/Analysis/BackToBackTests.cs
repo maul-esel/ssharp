@@ -23,17 +23,20 @@
 namespace SafetySharp.CaseStudies.RobotCell.Analysis
 {
 	using System;
+	using System.Collections.Generic;
 	using System.IO;
 	using System.Linq;
 
 	using ISSE.SafetyChecking.ExecutedModel;
 	using ISSE.SafetyChecking.Formula;
 	using ISSE.SafetyChecking.MinimalCriticalSetAnalysis;
+	using ISSE.SafetyChecking.Modeling;
 	using ModelChecking;
 	using Runtime;
 
 	using Modeling;
 	using Modeling.Controllers;
+	using Modeling.Plants;
 
 	using NUnit.Framework;
 
@@ -69,6 +72,10 @@ namespace SafetySharp.CaseStudies.RobotCell.Analysis
 
 		private void Dcca(Model model, Formula hazard, bool enableHeuristics)
 		{
+			var monitor = new MonitoringHeuristic(model.Faults, GetCriticalFaults);
+			if (enableHeuristics)
+				FastObserverController.MonitoringHeuristic = monitor;
+
 			var safetyAnalysis = new SafetySharpSafetyAnalysis
 			{
 				Configuration =
@@ -85,13 +92,48 @@ namespace SafetySharp.CaseStudies.RobotCell.Analysis
 			{
 				safetyAnalysis.Heuristics.Add(RedundancyHeuristic(model));
 				safetyAnalysis.Heuristics.Add(new SubsumptionHeuristic(model.Faults));
+				safetyAnalysis.Heuristics.Add(monitor);
 			}
 
 			var result = safetyAnalysis.ComputeMinimalCriticalSets(model, hazard);
 			Console.WriteLine(result);
 
-			string mode = enableHeuristics ? "heuristics" : (hazard.ToString() == "false" ? "breadth-first" : "dcca");
+			var mode = enableHeuristics ? "heuristics" : (hazard.ToString() == "false" ? "breadth-first" : "dcca");
 			LogResult(model, result, mode);
+		}
+
+		private IEnumerable<Fault> GetCriticalFaults(Agent agent, Role role)
+		{
+			var robotAgent = agent as RobotAgent;
+			if (robotAgent != null)
+			{
+				var robot = robotAgent.Robot;
+				yield return robot.Broken;
+				yield return robot.ResourceTransportFault;
+
+				var actions = new HashSet<ProductionAction>(
+					role.CapabilitiesToApply.OfType<ProcessCapability>().Select(cap => cap.ProductionAction)
+				);
+				foreach (var tool in robot.Tools.Where(t => t.CanApply() && actions.Contains(t.Capability.ProductionAction)))
+					yield return tool.Broken;
+			}
+			else
+			{
+				var cart = ((CartAgent)agent).Cart;
+				yield return cart.Broken;
+
+				foreach (var route in cart.Routes.Where(route => IsConnection(route, (RobotAgent)role.PreCondition.Port, (RobotAgent)role.PostCondition.Port)))
+					yield return route.Blocked;
+			}
+		}
+
+		private static bool IsConnection(Route route, RobotAgent from, RobotAgent to)
+		{
+			if (route.IsBlocked)
+				return false;
+
+			return (route.Robot1 == from.Robot && route.Robot2 == to.Robot)
+				   || (route.Robot2 == from.Robot && route.Robot1 == to.Robot);
 		}
 
 		private StreamWriter _csv;

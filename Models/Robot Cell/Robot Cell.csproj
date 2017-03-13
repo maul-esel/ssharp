@@ -88,6 +88,7 @@
     <Compile Include="Modeling\Plants\Route.cs" />
     <Compile Include="Modeling\Plants\Tool.cs" />
     <Compile Include="Modeling\Plants\Workpiece.cs" />
+    <Compile Include="MonitoringHeuristic.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

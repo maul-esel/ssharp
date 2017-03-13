@@ -235,7 +235,7 @@ namespace ISSE.SafetyChecking.AnalysisModel
 		/// </summary>
 		/// <param name="set">The subsumed fault set the subsuming faults should be returned for.</param>
 		/// <param name="allFaults">The list of all analyzed faults.</param>
-		internal static FaultSet SubsumingFaults(FaultSet set, Fault[] allFaults)
+		public static FaultSet SubsumingFaults(FaultSet set, Fault[] allFaults)
 		{
 			var currentFaults = set.ToFaultSequence(allFaults);
 			var subsuming = set;
