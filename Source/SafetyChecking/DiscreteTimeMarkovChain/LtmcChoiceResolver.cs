@@ -28,6 +28,7 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 	using ExecutableModel;
 	using Modeling;
 	using Utilities;
+	using System;
 
 	/// <summary>
 	///   Represents a stack that is used to resolve nondeterministic choices during state space enumeration.
@@ -38,15 +39,11 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 		///   The number of nondeterministic choices that can be stored initially.
 		/// </summary>
 		private const int InitialCapacity = 64;
-
+		
 		/// <summary>
 		///   The stack that indicates the chosen values for the current path.
 		/// </summary>
-		private readonly ChoiceStack _chosenValues = new ChoiceStack(InitialCapacity);
-
-		/// <summary>
-		/// </summary>
-		private readonly LtmcProbabilityStack _probabilitiesOfChosenValues = new LtmcProbabilityStack(InitialCapacity);
+		private readonly LtmcChosenValueStack _chosenValues = new LtmcChosenValueStack(InitialCapacity);
 
 		/// <summary>
 		///   The stack that stores the number of possible values of all encountered choices along the current path.
@@ -87,6 +84,20 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 			_firstPath = true;
 		}
 
+		private Probability GetProbabilityOfPreviousPath()
+		{
+			if (_choiceIndex==-1 || _choiceIndex==0)
+				return Probability.One;
+			return _chosenValues[_choiceIndex - 1].Probability;
+		}
+
+		private Probability GetProbabilityUntilIndex(int index)
+		{
+			if (index == -1)
+				return Probability.One;
+			return _chosenValues[index].Probability;
+		}
+
 
 		/// <summary>
 		///   Prepares the resolver for the next path. Returns <c>true</c> to indicate that all paths have been enumerated.
@@ -114,15 +125,23 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 				var chosenValue = _chosenValues.Remove();
 
 				// If we have at least one other value to choose, let's do that next
-				if (_valueCount.Peek() > chosenValue + 1)
+				if (_valueCount.Peek() > chosenValue.Value + 1)
 				{
-					_chosenValues.Push(chosenValue + 1);
+					var previousProbability = GetProbabilityUntilIndex(_valueCount.Count - 2);
+					var valueCount = _valueCount.Peek();
+
+					var newChosenValue =
+						new LtmcChosenValue
+						{
+							Value = chosenValue.Value + 1,
+							Probability = previousProbability / valueCount //placeholder value (for non deterministic choice)
+						};
+					_chosenValues.Push(newChosenValue);
 					return true;
 				}
 
 				// Otherwise, we've chosen all values of the last choice, so we're done with it
 				_valueCount.Remove();
-				_probabilitiesOfChosenValues.Remove();
 			}
 
 			// If we reach this point, we know that we've chosen all values of all choices, so there are no further paths
@@ -141,12 +160,17 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 			// If we have a preselected value that we should choose for the current path, return it
 			var chosenValuesMaxIndex = _chosenValues.Count - 1;
 			if (_choiceIndex <= chosenValuesMaxIndex)
-				return _chosenValues[_choiceIndex];
+				return _chosenValues[_choiceIndex].Value;
 
 			// We haven't encountered this choice before; store the value count and return the first value
 			_valueCount.Push(valueCount);
-			_chosenValues.Push(0);
-			_probabilitiesOfChosenValues.Push(Probability.One / valueCount); //placeholder value
+			var newChosenValue =
+				new LtmcChosenValue
+				{
+					Value = 0,
+					Probability = GetProbabilityOfPreviousPath() / valueCount //placeholder value (for non deterministic choice)
+				};
+			_chosenValues.Push(newChosenValue);
 
 			return 0;
 		}
@@ -162,6 +186,15 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 			return HandleChoice(valueCount);
 		}
 
+		/// <summary>
+		///   Gets the continuation id of the current path.
+		/// </summary>
+		internal override int GetContinuationId()
+		{
+			//TODO: Replace lastChoiceIndex by continuation id
+			throw new NotImplementedException();
+		}
+
 
 		/// <summary>
 		/// </summary>
@@ -169,28 +202,61 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public override void SetProbabilityOfLastChoice(Probability probability)
 		{
-			var probabilitiesOfChosenValuesMaxIndex = _probabilitiesOfChosenValues.Count - 1;
+			var probabilitiesOfChosenValuesMaxIndex = _chosenValues.Count - 1;
 			// If this part of the path has previously been visited we do not change the value
 			// because this value has already been set by a previous call of SetProbabilityOfLastChoice.
-			// Further, this value might have been overridden by an Undo. Only if we explore
-			// a new part of the path the probability should be written.
+			// Only if we explore a new part of the path the probability needs to be written.
 			// A new part of the path is explored, iff the previous HandleChoice pushed a new placeholder
 			// value onto the three stacks).
 			if (_choiceIndex == probabilitiesOfChosenValuesMaxIndex)
 			{
-				_probabilitiesOfChosenValues[_choiceIndex] = probability;
+				_chosenValues[_choiceIndex] =
+					new LtmcChosenValue
+					{
+						Value = _chosenValues[_choiceIndex].Value,
+						Probability = GetProbabilityOfPreviousPath() * probability
+					};
 			}
 		}
 
 		/// <summary>
-		///   Undoes the choice identified by the <paramref name="choiceIndex" />.
+		///   Makes taken choice identified by the <paramref name="choiceIndex" /> deterministic.
 		/// </summary>
 		/// <param name="choiceIndex">The index of the choice that should be undone.</param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal override void Undo(int choiceIndex)
+		internal override void MakeChoiceAtIndexDeterministic(int choiceIndex)
 		{
+			// This method is called when it is assumed, that choosing anything different at choiceIndex
+			// leads to the same state as the path until the last choice.
+			// Thus, we can simply revert this unnecessary choice and add the probability of the unmade alternatives
+			// of the reverted choice to the last choice.
+			// Note, very small numbers get multiplied and summarized. Maybe type double is too imprecise.
+
+			if (_valueCount[choiceIndex] == 0)
+				return; //Nothing to do
+
+			Assert.That(_chosenValues[choiceIndex].Value==0, "Only first choice can be made deterministic.");
+
 			// We disable a choice by setting the number of values that we have yet to choose to 0, effectively
 			// turning the choice into a deterministic selection of the value at index 0
+
+			var oldProbabilityUntilDeterministicChoice = GetProbabilityUntilIndex(choiceIndex-1).Value;
+			var oldProbabilityOfDeterministicChoice = GetProbabilityUntilIndex(choiceIndex).Value;
+			var differenceProbabilityToAdd = oldProbabilityUntilDeterministicChoice - oldProbabilityOfDeterministicChoice;
+			
+			var probabilityOfLastChoicePath = GetProbabilityUntilIndex(LastChoiceIndex).Value;
+			
+			var newValueOfLastChoice = (probabilityOfLastChoicePath + differenceProbabilityToAdd);
+
+			// set the calculated value
+			_chosenValues[LastChoiceIndex] =
+				new LtmcChosenValue
+				{
+					Value = _chosenValues[LastChoiceIndex].Value,
+					Probability = new Probability(newValueOfLastChoice)
+				};
+
+			// Set the alternatives to zero.
 			_valueCount[choiceIndex] = 0;
 		}
 
@@ -204,7 +270,13 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 
 			foreach (var choice in choices)
 			{
-				_chosenValues.Push(choice);
+				var newChosenValue =
+					new LtmcChosenValue
+					{
+						Probability = Probability.One,
+						Value = choice
+					};
+				_chosenValues.Push(newChosenValue);
 				_valueCount.Push(0);
 			}
 		}
@@ -214,10 +286,9 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 		/// </summary>
 		internal override Probability CalculateProbabilityOfPath()
 		{
-			var probability = Probability.One;
-			for (var i = 0; i < _probabilitiesOfChosenValues.Count; ++i)
-				probability *= _probabilitiesOfChosenValues[i];
-			return probability;
+			if (_choiceIndex == -1)
+				return Probability.One;
+			return _chosenValues[_choiceIndex].Probability;
 		}
 
 		/// <summary>
@@ -226,7 +297,6 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 		internal override void Clear()
 		{
 			_chosenValues.Clear();
-			_probabilitiesOfChosenValues.Clear();
 			_valueCount.Clear();
 			_choiceIndex = -1;
 		}
@@ -237,7 +307,7 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 		internal override IEnumerable<int> GetChoices()
 		{
 			for (var i = 0; i < _chosenValues.Count; ++i)
-				yield return _chosenValues[i];
+				yield return _chosenValues[i].Value;
 		}
 
 		/// <summary>
@@ -250,7 +320,6 @@ namespace ISSE.SafetyChecking.DiscreteTimeMarkovChain
 				return;
 
 			_chosenValues.SafeDispose();
-			_probabilitiesOfChosenValues.SafeDispose();
 			_valueCount.SafeDispose();
 		}
 	}

@@ -44,6 +44,12 @@ namespace SafetySharp.CaseStudies.HeightControl.Modeling.Vehicles
 		private readonly Vehicle[] _orderedVehicles;
 
 		/// <summary>
+		///   Checks if all vehicles have finished.
+		/// </summary>
+		[Hidden]
+		public FinishedObserver FinishedObserver;
+
+		/// <summary>
 		///   Allows high vehicles to drive on the left lane.
 		/// </summary>
 		public readonly Fault LeftHV = new TransientFault();
@@ -57,7 +63,7 @@ namespace SafetySharp.CaseStudies.HeightControl.Modeling.Vehicles
 		///   Allows all kinds of vehicles to drive slower than expected.
 		/// </summary>
 		public readonly Fault SlowTraffic = new TransientFault();
-
+		
 		/// <summary>
 		///   Initializes a new instance.
 		/// </summary>
@@ -114,6 +120,11 @@ namespace SafetySharp.CaseStudies.HeightControl.Modeling.Vehicles
 		/// </summary>
 		public override void Update()
 		{
+			FinishedObserver.Update(); //must be called before the update
+
+			if (FinishedObserver.Finished)
+				return;
+
 			if (PreventOverlappingWithStateConstraint)
 				Update(Vehicles);
 			else
@@ -151,21 +162,24 @@ namespace SafetySharp.CaseStudies.HeightControl.Modeling.Vehicles
 				// Update the position of the vehicle
 				_orderedVehicles[i].Update();
 
+				if (oldPosition == Model.TunnelPosition)
+					continue;
+
 				// Check, if the position overlaps with another vehicle
-				var updated = false;
-				for (var j = 0; j < i && !updated; j++)
+				var fixedOverlap = false;
+				for (var j = 0; j < i && !fixedOverlap; j++)
 				{
-					if ((_orderedVehicles[j].Position != 0 || _orderedVehicles[j]. Position > Model.EndControlPosition) &&
+					if (_orderedVehicles[j].Position != 0 &&
+						 _orderedVehicles[j].Position < Model.TunnelPosition &&
 						 _orderedVehicles[i].Position == _orderedVehicles[j].Position &&
 						 _orderedVehicles[i].Lane == _orderedVehicles[j].Lane)
 					{
 						// Found an overlap. So reset the old vehicle to its old position.
-						updated = true;
+						fixedOverlap = true;
 						_orderedVehicles[i].Position = oldPosition;
 						_orderedVehicles[i].Lane = oldLane;
+						_orderedVehicles[i].Speed = 0;
 					}
-
-
 				}
 			}
 		}

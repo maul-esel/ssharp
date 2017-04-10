@@ -41,7 +41,17 @@ namespace ISSE.SafetyChecking.Formula
 		///   Visits the <paramref name="formula." />
 		/// </summary>
 		public abstract void VisitAtomarPropositionFormula(AtomarPropositionFormula formula);
-		
+
+		/// <summary>
+		///   Visits the <paramref name="formula." />
+		/// </summary>
+		public abstract void VisitBoundedUnaryFormula(BoundedUnaryFormula formula);
+
+		/// <summary>
+		///   Visits the <paramref name="formula." />
+		/// </summary>
+		public abstract void VisitBoundedBinaryFormula(BoundedBinaryFormula formula);
+
 		/// <summary>
 		///   Visits the <paramref name="formula." />
 		/// </summary>

@@ -37,30 +37,51 @@ namespace SafetySharp.CaseStudies.HeightControl.Analysis
 	using System.Collections;
 	using Modeling.Controllers;
 	using Modeling.Sensors;
+	using Newtonsoft.Json;
 
 	class HazardProbabilityTests
 	{
+		public class ModelProbabilities
+		{
+#pragma warning disable 0169
+#pragma warning disable 0649
+			public double LightBarrierFalseDetection;
+			public double LightBarrierMisdetection;
+			public double OverheadDetectorFalseDetection;
+			public double OverheadDetectorMisdetection;
+			public double SmallLightBarrierFalseDetection;
+			public double SmallLightBarrierMisdetection;
+			public double LeftHV;
+			public double LeftOHV;
+			public double SlowTraffic;
+#pragma warning restore 0169
+#pragma warning restore 0649
+		}
+
 		public static void SetProbabilities(Model model)
 		{
+			var probabilities = JsonConvert.DeserializeObject<ModelProbabilities>(System.IO.File.ReadAllText("Analysis/heightcontrol_probabilities.json"));
+
 			foreach (var detector in model.Components.OfType<LightBarrier>())
 			{
-				detector.FalseDetection.ProbabilityOfOccurrence = new Probability(0.005);
-				detector.Misdetection.ProbabilityOfOccurrence = new Probability(0.0001);
+				detector.FalseDetection.ProbabilityOfOccurrence = new Probability(probabilities.LightBarrierFalseDetection);
+				detector.Misdetection.ProbabilityOfOccurrence = new Probability(probabilities.LightBarrierMisdetection);
 			}
 
 			foreach (var detector in model.Components.OfType<OverheadDetector>())
 			{
-				detector.FalseDetection.ProbabilityOfOccurrence = new Probability(0.005);
-				detector.Misdetection.ProbabilityOfOccurrence = new Probability(0.0001);
+				detector.FalseDetection.ProbabilityOfOccurrence = new Probability(probabilities.OverheadDetectorFalseDetection);
+				detector.Misdetection.ProbabilityOfOccurrence = new Probability(probabilities.OverheadDetectorMisdetection);
 			}
 			foreach (var detector in model.Components.OfType<SmallLightBarrier>())
 			{
-				detector.FalseDetection.ProbabilityOfOccurrence = new Probability(0.005);
-				detector.Misdetection.ProbabilityOfOccurrence = new Probability(0.0001);
+				detector.FalseDetection.ProbabilityOfOccurrence = new Probability(probabilities.SmallLightBarrierFalseDetection);
+				detector.Misdetection.ProbabilityOfOccurrence = new Probability(probabilities.SmallLightBarrierMisdetection);
 			}
-			model.VehicleSet.LeftHV.ProbabilityOfOccurrence = new Probability(0.01);
-			model.VehicleSet.LeftOHV.ProbabilityOfOccurrence = new Probability(0.001);
-			model.VehicleSet.SlowTraffic.ProbabilityOfOccurrence = new Probability(0.1);
+
+			model.VehicleSet.LeftHV.ProbabilityOfOccurrence = new Probability(probabilities.LeftHV);
+			model.VehicleSet.LeftOHV.ProbabilityOfOccurrence = new Probability(probabilities.LeftOHV);
+			model.VehicleSet.SlowTraffic.ProbabilityOfOccurrence = new Probability(probabilities.SlowTraffic);
 		}
 
 		[Test]
@@ -69,8 +90,8 @@ namespace SafetySharp.CaseStudies.HeightControl.Analysis
 			var model = Model.CreateOriginal();
 			SetProbabilities(model);
 
-			var result = SafetySharpModelChecker.CalculateProbabilityToReachState(model, model.Collision);
-			Console.Write($"Probability of hazard: {result.Value}");
+			var result = SafetySharpModelChecker.CalculateProbabilityToReachStateBounded(model, model.Collision, 50);
+			Console.Write($"Probability of hazard: {result}");
 		}
 
 		[Test]
@@ -79,8 +100,18 @@ namespace SafetySharp.CaseStudies.HeightControl.Analysis
 			var model = Model.CreateOriginal();
 			SetProbabilities(model);
 
-			var result = SafetySharpModelChecker.CalculateProbabilityToReachState(model, model.FalseAlarm);
-			Console.Write($"Probability of hazard: {result.Value}");
+			var result = SafetySharpModelChecker.CalculateProbabilityToReachStateBounded(model, model.FalseAlarm, 50);
+			Console.Write($"Probability of hazard: {result}");
+		}
+
+		[Test]
+		public void CalculatePreventionInOriginalDesign()
+		{
+			var model = Model.CreateOriginal();
+			SetProbabilities(model);
+
+			var result = SafetySharpModelChecker.CalculateProbabilityToReachStateBounded(model, model.PreventedCollision, 50);
+			Console.Write($"Probability of prevention: {result}");
 		}
 
 
@@ -89,8 +120,8 @@ namespace SafetySharp.CaseStudies.HeightControl.Analysis
 		public void CalculateCollision(Model model, string variantName)
 		{
 			SetProbabilities(model);
-			var result = SafetySharpModelChecker.CalculateProbabilityToReachState(model, model.Collision);
-			Console.Write($"Probability of hazard: {result.Value}");
+			var result = SafetySharpModelChecker.CalculateProbabilityToReachStateBounded(model, model.Collision, 50);
+			Console.Write($"Probability of hazard: {result}");
 		}
 
 		[TestCaseSource(nameof(CreateModelVariants))]
@@ -98,8 +129,17 @@ namespace SafetySharp.CaseStudies.HeightControl.Analysis
 		public void CalculateFalseAlarm(Model model, string variantName)
 		{
 			SetProbabilities(model);
-			var result = SafetySharpModelChecker.CalculateProbabilityToReachState(model, model.FalseAlarm);
-			Console.Write($"Probability of hazard: {result.Value}");
+			var result = SafetySharpModelChecker.CalculateProbabilityToReachStateBounded(model, model.FalseAlarm, 50);
+			Console.Write($"Probability of hazard: {result}");
+		}
+
+		[TestCaseSource(nameof(CreateModelVariants))]
+		[Category("PreventionProbability")]
+		public void CalculatePrevention(Model model, string variantName)
+		{
+			SetProbabilities(model);
+			var result = SafetySharpModelChecker.CalculateProbabilityToReachStateBounded(model, model.PreventedCollision, 50);
+			Console.Write($"Probability of prevention: {result}");
 		}
 
 

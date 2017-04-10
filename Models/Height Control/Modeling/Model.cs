@@ -45,7 +45,7 @@ namespace SafetySharp.CaseStudies.HeightControl.Modeling
 		public const int MaxSpeed = 2;
 		public const int MinSpeed = 1;
 		public const int MaxVehicles = 3;
-
+		
 		/// <summary>
 		///   Initializes a new instance.
 		/// </summary>
@@ -59,6 +59,7 @@ namespace SafetySharp.CaseStudies.HeightControl.Modeling
 			};
 
 			VehicleSet = new VehicleSet(vehicles);
+			VehicleSet.FinishedObserver =  new FinishedObserverDisabled();
 
 			SetupController(preControl);
 			SetupController(mainControl);
@@ -73,7 +74,7 @@ namespace SafetySharp.CaseStudies.HeightControl.Modeling
 		/// </summary>
 		[Root(RootKind.Controller)]
 		public HeightControl HeightControl { get; }
-
+		
 		/// <summary>
 		///   Gets the set of monitored vehicles.
 		/// </summary>
@@ -88,18 +89,49 @@ namespace SafetySharp.CaseStudies.HeightControl.Modeling
 		/// <summary>
 		///   Represents the hazard of an overheight vehicle colliding with the tunnel entrance on the left lane.
 		/// </summary>
-		public Formula Collision =>
-			Vehicles.Any(vehicle =>
-				vehicle.Position == TunnelPosition &&
-				vehicle.Lane == Lane.Left &&
-				vehicle.Kind == VehicleKind.OverheightVehicle);
+		public Formula Collision
+		{
+			get
+			{
+				Formula vehiclesAtEnd = VehicleSet.FinishedObserver.Finished;
+				return
+					!vehiclesAtEnd &&
+					Vehicles.Any(vehicle =>
+						vehicle.Position == TunnelPosition &&
+						vehicle.Lane == Lane.Left &&
+						vehicle.Kind == VehicleKind.OverheightVehicle);
+			}
+		}
 
 		/// <summary>
 		///   Represents the hazard of an alarm even when no overheight vehicle is on the right lane.
 		/// </summary>
-		public Formula FalseAlarm =>
-			HeightControl.TrafficLights.IsRed &&
-			!Vehicles.Any(vehicle => vehicle.Lane == Lane.Left && vehicle.Kind == VehicleKind.OverheightVehicle);
+		public Formula FalseAlarm
+		{
+			get
+			{
+				Formula vehiclesAtEnd = VehicleSet.FinishedObserver.Finished;
+				return
+					!vehiclesAtEnd &&
+					HeightControl.TrafficLights.IsRed &&
+					!Vehicles.Any(vehicle => vehicle.Lane == Lane.Left && vehicle.Kind == VehicleKind.OverheightVehicle);
+			}
+		}
+
+		/// <summary>
+		///   Represents the situation that an overheight vehicle has been prevented to collide with the tunnel entrance on the left lane.
+		/// </summary>
+		public Formula PreventedCollision
+		{
+			get
+			{
+				Formula vehiclesAtEnd = VehicleSet.FinishedObserver.Finished;
+				return
+					!vehiclesAtEnd &&
+					HeightControl.TrafficLights.IsRed &&
+					Vehicles.Any(vehicle => vehicle.Lane == Lane.Left && vehicle.Kind == VehicleKind.OverheightVehicle);
+			}
+		}
 
 		/// <summary>
 		///   Initializes a model of the original design.

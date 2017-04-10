@@ -102,39 +102,45 @@ namespace ISSE.SafetyChecking.MarkovDecisionProcess
 
 		public void ConvertTransitions(LabeledTransitionMarkovDecisionProcess ltmc)
 		{
-			throw new Exception("Not implemented yet");
-			/*
 			for (var i = 0; i < States; i++)
 			{
 				var sourceEntry = _backMapper[i];
-				MarkovDecisionProcess.StartWithNewDistribution(i);
+				MarkovDecisionProcess.StartWithNewDistributions(i);
 
-				var enumerator = ltmc.GetTransitionEnumerator(sourceEntry.StateStorageState);
-				while (enumerator.MoveNext())
+				var distEnumerator = ltmc.GetDistributionsEnumerator(sourceEntry.StateStorageState);
+				while (distEnumerator.MoveNext())
 				{
-					var targetEntry = new StateStorageEntry(enumerator.CurrentFormulas, enumerator.CurrentTargetState);
-					var targetState = _mapper[targetEntry];
-					MarkovDecisionProcess.AddTransition(targetState,enumerator.CurrentProbability);
+					MarkovDecisionProcess.StartWithNewDistribution();
+					var transEnumerator = distEnumerator.GetLabeledTransitionEnumerator();
+					while (transEnumerator.MoveNext())
+					{
+						var targetEntry = new StateStorageEntry(transEnumerator.CurrentFormulas, transEnumerator.CurrentTargetState);
+						var targetState = _mapper[targetEntry];
+						MarkovDecisionProcess.AddTransition(targetState, transEnumerator.CurrentProbability);
+					}
+					MarkovDecisionProcess.FinishDistribution();
 				}
-				MarkovDecisionProcess.FinishDistribution();
+				MarkovDecisionProcess.FinishDistributions();
 			}
-			*/
 		}
 
 		public void ConvertInitialStates(LabeledTransitionMarkovDecisionProcess ltmc)
 		{
-			throw new Exception("Not implemented yet");
-			/*
-			MarkovDecisionProcess.StartWithInitialDistribution();
-			var enumerator = ltmc.GetInitialDistributionEnumerator();
-			while (enumerator.MoveNext())
+			MarkovDecisionProcess.StartWithInitialDistributions();
+			var distEnumerator = ltmc.GetInitialDistributionsEnumerator();
+			while (distEnumerator.MoveNext())
 			{
-				var targetEntry = new StateStorageEntry(enumerator.CurrentFormulas, enumerator.CurrentTargetState);
-				var targetState = _mapper[targetEntry];
-				MarkovDecisionProcess.AddInitialTransition(targetState, enumerator.CurrentProbability);
+				MarkovDecisionProcess.StartWithNewInitialDistribution();
+				var transEnumerator = distEnumerator.GetLabeledTransitionEnumerator();
+				while (transEnumerator.MoveNext())
+				{
+					var targetEntry = new StateStorageEntry(transEnumerator.CurrentFormulas, transEnumerator.CurrentTargetState);
+					var targetState = _mapper[targetEntry];
+					MarkovDecisionProcess.AddTransitionToInitialDistribution(targetState, transEnumerator.CurrentProbability);
+				}
+				MarkovDecisionProcess.FinishInitialDistribution();
 			}
-			MarkovDecisionProcess.FinishInitialDistribution();
-			*/
+			MarkovDecisionProcess.FinishInitialDistributions();
 		}
 
 		public LtmdpToMdp(LabeledTransitionMarkovDecisionProcess ltmc)
@@ -144,7 +150,7 @@ namespace ISSE.SafetyChecking.MarkovDecisionProcess
 			Console.Out.WriteLine("Starting to convert labeled transition Markov Decision Process to Markov Decision Process");
 			Console.Out.WriteLine($"Ltmdp: States {ltmc.SourceStates.Count}, Transitions {ltmc.Transitions}");
 			CreateStates(ltmc);
-			var modelCapacity = new ModelCapacityByModelDensity(States, ModelDensityLimit.High);
+			var modelCapacity = new ModelCapacityByModelSize(States, ltmc.Distributions * 8L, ltmc.Transitions * 8L);
 			MarkovDecisionProcess =new MarkovDecisionProcess(modelCapacity);
 			MarkovDecisionProcess.StateFormulaLabels = ltmc.StateFormulaLabels;
 			SetStateLabeling();

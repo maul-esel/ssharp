@@ -48,14 +48,18 @@
   <ItemGroup>
     <Compile Include="AnalysisModelTraverser\AnalysisConfiguration.cs" />
     <Compile Include="AnalysisModel\AnalysisModel.cs" />
+    <Compile Include="AnalysisModel\TransitionFlags.cs" />
     <Compile Include="ExecutableModel\ExecutableModelCreator.cs" />
     <Compile Include="AnalysisModel\AnalysisModelCreator.cs" />
+    <Compile Include="Formula\BoundedBinaryFormula.cs" />
+    <Compile Include="Formula\BoundedUnaryFormula.cs" />
     <Compile Include="Formula\FormulaVisitors\IsFormulasStructurallyEquivalentVisitor.cs" />
     <Compile Include="Formula\FormulaVisitors\StateFormulaSetEvaluatorCompilationVisitor2.cs" />
     <Compile Include="Formula\FormulaVisitors\TransferFormulaToNewExecutedModelInstanceVisitor .cs" />
     <Compile Include="Formula\FormulaVisitors\CollectAtomarPropositionFormulasVisitor.cs" />
     <Compile Include="AnalysisModelTraverser\AnalysisException.cs" />
     <Compile Include="AnalysisModel\AnalysisResult.cs" />
+    <Compile Include="MarkovDecisionProcess\LtmdpContinuationDistributionMapper.cs" />
     <Compile Include="MinimalCriticalSetAnalysis\FaultActivationBehavior.cs" />
     <Compile Include="Formula\FormulaVisitors\IsFormulaReturningBoolValueVisitor.cs" />
     <Compile Include="Formula\FormulaVisitors\IsFormulaReturningRewardResultVisitor.cs" />
@@ -100,7 +104,7 @@
     <Compile Include="DiscreteTimeMarkovChain\LtmcChoiceResolver.cs" />
     <Compile Include="DiscreteTimeMarkovChain\LtmcExecutedModel.cs" />
     <Compile Include="DiscreteTimeMarkovChain\LtmcGenerator.cs" />
-    <Compile Include="DiscreteTimeMarkovChain\LtmcProbabilityStack.cs" />
+    <Compile Include="DiscreteTimeMarkovChain\LtmcChosenValueStack.cs" />
     <Compile Include="DiscreteTimeMarkovChain\LtmcToDtmc.cs" />
     <Compile Include="DiscreteTimeMarkovChain\LtmcTransition.cs" />
     <Compile Include="DiscreteTimeMarkovChain\LtmcTransitionSetBuilder.cs" />
@@ -114,10 +118,10 @@
     <Compile Include="MarkovDecisionProcess\LtmdpChoiceResolver.cs" />
     <Compile Include="MarkovDecisionProcess\LtmdpExecutedModel.cs" />
     <Compile Include="MarkovDecisionProcess\LtmdpGenerator.cs" />
-    <Compile Include="MarkovDecisionProcess\LtmdpProbabilityStack.cs" />
+    <Compile Include="MarkovDecisionProcess\LtmdpChosenValueStack.cs" />
     <Compile Include="MarkovDecisionProcess\LtmdpToMdp.cs" />
     <Compile Include="MarkovDecisionProcess\LtmdpTransition.cs" />
-    <Compile Include="MarkovDecisionProcess\LtmdpTransitionSetBuilder.cs" />
+    <Compile Include="MarkovDecisionProcess\LtmdpCachedLabeledStates.cs" />
     <Compile Include="MarkovDecisionProcess\MarkovDecisionProcess.cs" />
     <Compile Include="MarkovDecisionProcess\MdpFromExecutableModelGenerator.cs" />
     <Compile Include="MarkovDecisionProcess\MdpModelChecker.cs" />
@@ -196,6 +200,7 @@
     <Compile Include="Utilities\DisposableExtensions.cs" />
     <Compile Include="Utilities\DisposableObject.cs" />
     <Compile Include="Utilities\ExternalProcess.cs" />
+    <Compile Include="Utilities\MultipleChainsInSingleArray.cs" />
     <Compile Include="Utilities\InterlockedExtensions.cs" />
     <Compile Include="Utilities\MemoryBuffer.cs" />
     <Compile Include="Utilities\PinnedPointer.cs" />
