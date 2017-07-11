@@ -22,7 +22,8 @@
 
 namespace SafetySharp.Analysis
 {
-	using ISSE.SafetyChecking.MarkovDecisionProcess.Unoptimized;
+    using System.Linq;
+    using ISSE.SafetyChecking.MarkovDecisionProcess.Unoptimized;
 	using ISSE.SafetyChecking.AnalysisModel;
 	using ISSE.SafetyChecking.AnalysisModelTraverser;
 	using ISSE.SafetyChecking.DiscreteTimeMarkovChain;
@@ -52,6 +53,16 @@ namespace SafetySharp.Analysis
 		{
 			return new LtsMin().Check(SafetySharpRuntimeModel.CreateExecutedModelCreator(model,formula), formula);
 		}
+
+	    public static AnalysisResult<SafetySharpRuntimeModel> CheckCtl(ModelBase model, Formula formula)
+	    {
+	        var collector = new CollectMaximalCompilableFormulasVisitor();
+            collector.Visit(formula);
+	        var stateFormulas = collector.CollectedStateFormulas.ToArray();
+
+	        var createModel = SafetySharpRuntimeModel.CreateExecutedModelFromFormulasCreator(model);
+            return new CtlModelChecker<SafetySharpRuntimeModel>(createModel, stateFormulas).Check(formula);
+	    }
 
 		/// <summary>
 		///   Checks whether the <paramref name="invariant" /> holds in all states of the <paramref name="model" />. The appropriate
