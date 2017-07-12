@@ -55,14 +55,14 @@ namespace SafetySharp.Analysis
 			return new LtsMin().Check(SafetySharpRuntimeModel.CreateExecutedModelCreator(model,formula), formula);
 		}
 
-	    public static AnalysisResult<SafetySharpRuntimeModel> CheckCtl(ModelBase model, Formula formula)
+	    public static AnalysisResult<SafetySharpRuntimeModel> CheckCtl(ModelBase model, Formula formula, Formula trueFormula)
 	    {
             var syntaxChecker = new IsCtlFormulaVisitor();
             syntaxChecker.Visit(formula);
             if (!syntaxChecker.IsCtlFormula)
                 throw new ArgumentException("Can only check CTL formulae", nameof(formula));
 
-            var normalizer = new CtlNormalizerVisitor();
+            var normalizer = new CtlNormalizerVisitor(trueFormula);
             normalizer.Visit(formula);
 	        formula = normalizer.NormalizedFormula;
 

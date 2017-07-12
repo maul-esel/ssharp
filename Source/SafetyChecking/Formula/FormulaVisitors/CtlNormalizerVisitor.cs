@@ -31,6 +31,12 @@ namespace ISSE.SafetyChecking.Formula
     {
         private Formula _result;
         private UnaryOperator? _parentOperator = null;
+        private readonly Formula _true;
+
+        public CtlNormalizerVisitor(Formula trueFormula)
+        {
+            _true = trueFormula;
+        }
 
         public Formula NormalizedFormula => _result;
 
@@ -71,7 +77,7 @@ namespace ISSE.SafetyChecking.Formula
                 if (formula.Operator == UnaryOperator.Finally)
                 {
                     Visit(formula.Operand);
-                    _result = new UnaryFormula(new BinaryFormula(true, BinaryOperator.Until, _result), UnaryOperator.Exists); // (EF \phi) <=> (true EU \phi)
+                    _result = new UnaryFormula(new BinaryFormula(_true, BinaryOperator.Until, _result), UnaryOperator.Exists); // (EF \phi) <=> (true EU \phi)
                     return;
                 }
             }
@@ -90,7 +96,7 @@ namespace ISSE.SafetyChecking.Formula
                         return;
                     case UnaryOperator.Globally: // (AG \phi) <=> (! EF ! \phi) <=> (! (true EU ! \phi))
                         Visit(formula.Operand);
-                        _result = new UnaryFormula(new UnaryFormula(new BinaryFormula(true, BinaryOperator.Until, Negate(_result)), UnaryOperator.Exists), UnaryOperator.Not);
+                        _result = new UnaryFormula(new UnaryFormula(new BinaryFormula(_true, BinaryOperator.Until, Negate(_result)), UnaryOperator.Exists), UnaryOperator.Not);
                         return;
                 }
             }
