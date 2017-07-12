@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-namespace ISSE.SafetyChecking.Formula.FormulaVisitors
+namespace ISSE.SafetyChecking.Formula
 {
     using System;
 
@@ -31,6 +31,8 @@ namespace ISSE.SafetyChecking.Formula.FormulaVisitors
     {
         private Formula _result;
         private UnaryOperator? _parentOperator = null;
+
+        public Formula NormalizedFormula => _result;
 
         private Formula Negate(Formula formula)
         {

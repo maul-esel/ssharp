@@ -22,6 +22,7 @@
 
 namespace SafetySharp.Analysis
 {
+    using System;
     using System.Linq;
     using ISSE.SafetyChecking.MarkovDecisionProcess.Unoptimized;
 	using ISSE.SafetyChecking.AnalysisModel;
@@ -56,6 +57,15 @@ namespace SafetySharp.Analysis
 
 	    public static AnalysisResult<SafetySharpRuntimeModel> CheckCtl(ModelBase model, Formula formula)
 	    {
+            var syntaxChecker = new IsCtlFormulaVisitor();
+            syntaxChecker.Visit(formula);
+            if (!syntaxChecker.IsCtlFormula)
+                throw new ArgumentException("Can only check CTL formulae", nameof(formula));
+
+            var normalizer = new CtlNormalizerVisitor();
+            normalizer.Visit(formula);
+	        formula = normalizer.NormalizedFormula;
+
 	        var collector = new CollectMaximalCompilableFormulasVisitor();
             collector.Visit(formula);
 	        var stateFormulas = collector.CollectedStateFormulas.ToArray();
