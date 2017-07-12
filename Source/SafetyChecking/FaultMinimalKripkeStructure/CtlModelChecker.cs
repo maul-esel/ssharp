@@ -52,7 +52,25 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
 
         public AnalysisResult<TExecutableModel> Check(Formula formula)
         {
-            throw new NotImplementedException();
+            var satisfyingStates = CheckInternal(formula);
+
+            return new AnalysisResult<TExecutableModel>
+            {
+                FormulaHolds = HoldsInAllInitialStates(satisfyingStates),
+                StateCount = _stateGraph.StateCount,
+                TransitionCount = _stateGraph.TransitionCount
+            };
+        }
+
+        private bool HoldsInAllInitialStates(bool[] satisfyingStates)
+        {
+            foreach (var initialTransition in _stateGraph.GetInitialTransitions())
+                unsafe
+                {
+                    if (!satisfyingStates[initialTransition->TargetStateIndex])
+                        return false;
+                }
+            return true;
         }
 
         private bool[] CheckInternal(Formula formula)
@@ -257,9 +275,9 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
             private readonly Transition*[] _stack;
             private readonly bool[] _seen;
 
-            private int top = -1;
+            private int _top = -1;
 
-            public int Size => top + 1;
+            public int Size => _top + 1;
 
             public StateTransitionStack(int capacity)
             {
@@ -272,18 +290,18 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
                 if (_seen[element->TargetStateIndex])
                     return;
 
-                _stack[++top] = element;
+                _stack[++_top] = element;
                 _seen[element->TargetStateIndex] = true;
             }
 
             public Transition* Pop()
             {
-                return _stack[top--];
+                return _stack[_top--];
             }
 
             public Transition* Peek()
             {
-                return _stack[top];
+                return _stack[_top];
             }
         }
 
