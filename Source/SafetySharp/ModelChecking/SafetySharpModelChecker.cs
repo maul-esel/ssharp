@@ -68,7 +68,7 @@ namespace SafetySharp.Analysis
 
 	        var collector = new CollectMaximalCompilableFormulasVisitor();
             collector.Visit(formula);
-	        var stateFormulas = collector.CollectedStateFormulas.ToArray();
+	        var stateFormulas = collector.IsCompilable ? new [] { formula } : collector.CollectedStateFormulas.ToArray();
 
 	        var createModel = SafetySharpRuntimeModel.CreateExecutedModelFromFormulasCreator(model);
             return new CtlModelChecker<SafetySharpRuntimeModel>(createModel, stateFormulas).Check(formula);
