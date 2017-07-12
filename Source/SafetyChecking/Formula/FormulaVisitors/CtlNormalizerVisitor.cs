@@ -61,21 +61,23 @@ namespace ISSE.SafetyChecking.Formula
             }
             else if (_parentOperator == UnaryOperator.Exists)
             {
+                _parentOperator = null;
                 if (formula.Operator == UnaryOperator.Next || formula.Operator == UnaryOperator.Globally)
                 {
                     Visit(formula.Operand);
                     _result = new UnaryFormula(new UnaryFormula(_result, formula.Operator), UnaryOperator.Exists);
                     return;
                 }
-                else if (formula.Operator == UnaryOperator.Finally)
+                if (formula.Operator == UnaryOperator.Finally)
                 {
                     Visit(formula.Operand);
                     _result = new UnaryFormula(new BinaryFormula(true, BinaryOperator.Until, _result), UnaryOperator.Exists); // (EF \phi) <=> (true EU \phi)
-                    return;;
+                    return;
                 }
             }
             else if (_parentOperator == UnaryOperator.All)
             {
+                _parentOperator = null;
                 switch (formula.Operator)
                 {
                     case UnaryOperator.Next: // (AX \phi) <=> (! EX ! \phi)
@@ -136,6 +138,8 @@ namespace ISSE.SafetyChecking.Formula
 
         public override void VisitAtomarPropositionFormula(AtomarPropositionFormula formula)
         {
+            if (_parentOperator != null)
+                throw new InvalidOperationException("Only CTL formulas can be normalized.");
             _result = formula;
         }
 
