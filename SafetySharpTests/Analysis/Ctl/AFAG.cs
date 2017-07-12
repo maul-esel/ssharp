@@ -24,14 +24,14 @@ namespace Tests.Analysis.Ctl
 {
 	using SafetySharp.Modeling;
 	using Shouldly;
-	using static SafetySharp.Analysis.Tl;
+	using static SafetySharp.Analysis.Operators;
 
 	internal class AFAG : AnalysisTestObject
 	{
 		protected override void Check()
 		{
 			var c = new C();
-			Check(AF(AG(c.G)), c).ShouldBe(true);
+			CheckCtl(AF(AG(c.G)), true, c).ShouldBe(true);
 		}
 
 		private class C : Component

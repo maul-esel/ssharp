@@ -25,7 +25,7 @@ namespace Tests.Analysis.Ctl
 	using System;
 	using SafetySharp.Modeling;
 	using Shouldly;
-	using static SafetySharp.Analysis.Tl;
+	using static SafetySharp.Analysis.Operators;
 
 	internal class AX : AnalysisTestObject
 	{
@@ -33,8 +33,8 @@ namespace Tests.Analysis.Ctl
 		{
 			var c = new C();
 
-			Check(AX(c.G), c).ShouldBe(true);
-			Check(AX(!c.G), c).ShouldBe(false);
+			CheckCtl(AX(c.G), true, c).ShouldBe(true);
+			CheckCtl(AX(!c.G), true, c).ShouldBe(false);
 		}
 
 		private class C : Component

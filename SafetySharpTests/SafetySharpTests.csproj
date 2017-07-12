@@ -129,6 +129,12 @@
     <Compile Include="..\Source\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+	<Compile Include="Analysis\Ctl\AF.cs" />
+	<Compile Include="Analysis\Ctl\AFAG.cs" />
+	<Compile Include="Analysis\Ctl\AG.cs" />
+	<Compile Include="Analysis\Ctl\AX.cs" />
+	<Compile Include="Analysis\Ctl\EX.cs" />
+	<Compile Include="Analysis\Ctl\initial state.cs" />
     <Compile Include="Analysis\Dcca\all faults suppressed.cs" />
     <Compile Include="Analysis\Dcca\hidden hazard.cs" />
     <Compile Include="Analysis\Dcca\empty set.cs" />

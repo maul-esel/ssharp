@@ -30,7 +30,7 @@ namespace Tests.Analysis.Ctl
 		protected override void Check()
 		{
 			var c = new C { F = 3 };
-			Check(c.F == 3, c).ShouldBe(true);
+			CheckCtl(c.F == 3, true, c).ShouldBe(true);
 		}
 
 		private class C : Component

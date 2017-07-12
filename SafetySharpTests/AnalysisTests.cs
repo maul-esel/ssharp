@@ -187,6 +187,17 @@ namespace Tests
 		}
 	}
 
+    public partial class CtlTests
+    {
+        private readonly AnalysisTestsVariant _analysisTestsVariant = new AnalysisTestsWithCtlModelChecker();
+
+        [Theory, MemberData(nameof(DiscoverTests), "Analysis/Ctl")]
+        public void TestCtl(string test, string file)
+        {
+            ExecuteDynamicTests(file, _analysisTestsVariant);
+        }
+    }
+
 	public partial class ProbabilisticTests
 	{
 		[Theory(Skip = "Requires external tools"), MemberData("AllProbabilisticModelCheckerTests", "Analysis/Probabilistic")]

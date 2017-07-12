@@ -116,6 +116,11 @@ namespace Tests
 			return result.FormulaHolds;
 		}
 
+	    protected bool CheckCtl(Formula formula, Formula trueFormula, params IComponent[] components)
+	    {
+	        return SafetySharpModelChecker.CheckCtl(TestModel.InitializeModel(components), formula, trueFormula).FormulaHolds;
+	    }
+
 
 		protected SafetyAnalysisResults<SafetySharpRuntimeModel> DccaWithMaxCardinality(Formula hazard, int maxCardinality, params IComponent[] components)
 		{
@@ -312,10 +317,24 @@ namespace Tests
 		{
 			return EnumerateTestCases(GetAbsoluteTestsDirectory(directory));
 		}
-	}
+    }
+
+    public partial class CtlTests : Tests
+    {
+        public CtlTests(ITestOutputHelper output)
+            : base(output)
+        {
+        }
+
+        [UsedImplicitly]
+        public static IEnumerable<object[]> DiscoverTests(string directory)
+        {
+            return EnumerateTestCases(GetAbsoluteTestsDirectory(directory));
+        }
+    }
 
 
-	public partial class ProbabilisticTests : Tests
+    public partial class ProbabilisticTests : Tests
 	{
 		public ProbabilisticTests(ITestOutputHelper output)
 			: base(output)

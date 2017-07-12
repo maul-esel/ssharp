@@ -49,6 +49,29 @@ namespace Tests
 		public abstract AnalysisResult<SafetySharpRuntimeModel> Check(CoupledExecutableModelCreator<SafetySharpRuntimeModel> createModel, Formula formula);
 	}
 
+    public class AnalysisTestsWithCtlModelChecker : AnalysisTestsVariant
+    {
+        public override void CreateModelChecker(bool suppressCounterExampleGeneration, Action<string> logAction)
+        {
+        }
+
+        public override AnalysisResult<SafetySharpRuntimeModel>[] CheckInvariants(ExecutableModelCreator<SafetySharpRuntimeModel> createModel, params Formula[] invariants)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override AnalysisResult<SafetySharpRuntimeModel> CheckInvariant(CoupledExecutableModelCreator<SafetySharpRuntimeModel> createModel, Formula formula)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override AnalysisResult<SafetySharpRuntimeModel> Check(CoupledExecutableModelCreator<SafetySharpRuntimeModel> createModel, Formula formula)
+        {
+            //return SafetySharpModelChecker.CheckCtl(createModel, formula);
+            throw new NotImplementedException();
+        }
+    }
+
 	public class AnalysisTestsWithLtsMin: AnalysisTestsVariant
 	{
 		private LtsMin modelChecker;
