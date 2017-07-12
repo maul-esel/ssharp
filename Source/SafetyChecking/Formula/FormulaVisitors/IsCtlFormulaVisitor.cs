@@ -24,7 +24,7 @@ namespace ISSE.SafetyChecking.Formula
 {
     class IsCtlFormulaVisitor : FormulaVisitor
     {
-        public bool IsCtlFormula { get; private set; }
+        public bool IsCtlFormula { get; private set; } = true;
         private bool _expectingTemporalQuantifier = false;
 
         public override void VisitUnaryFormula(UnaryFormula formula)
