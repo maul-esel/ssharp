@@ -32,12 +32,14 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
     using System.Collections.Generic;
     using System.Linq;
 
-    class CtlModelChecker<TExecutableModel> where TExecutableModel : ExecutableModel<TExecutableModel>
+    public class CtlModelChecker<TExecutableModel> where TExecutableModel : ExecutableModel<TExecutableModel>
     {
         private readonly StateGraph<TExecutableModel> _stateGraph;
         private readonly Formula[] _stateFormulas;
 
         private readonly Dictionary<Formula, bool[]> _checkedFormulas = new Dictionary<Formula, bool[]>();
+        private readonly Dictionary<int, int> _stateNumbers = new Dictionary<int, int>();
+        private int _maxState = -1;
  
         public CtlModelChecker(ExecutableModelCreator<TExecutableModel> createModel, Formula[] stateFormulas)
         {
@@ -46,7 +48,9 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
             Requires.That(stateFormulas.Length > 0, nameof(stateFormulas), "Expected at least one state formula.");
 
             var modelGenerator = createModel.Create(stateFormulas);
-            _stateGraph = new QualitativeChecker<TExecutableModel>().GenerateStateGraph(modelGenerator);
+
+            var checker = new QualitativeChecker<TExecutableModel> { Configuration = { ProgressReportsOnly = false } };
+            _stateGraph = checker.GenerateStateGraph(modelGenerator);
             _stateFormulas = stateFormulas;
         }
 
@@ -62,12 +66,19 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
             };
         }
 
+        private int GetState(int index)
+        {
+            if (_stateNumbers.ContainsKey(index))
+                return _stateNumbers[index];
+            return _stateNumbers[index] = ++_maxState;
+        }
+
         private bool HoldsInAllInitialStates(bool[] satisfyingStates)
         {
             foreach (var initialTransition in _stateGraph.GetInitialTransitions())
                 unsafe
                 {
-                    if (!satisfyingStates[initialTransition->TargetStateIndex])
+                    if (!satisfyingStates[GetState(initialTransition->TargetStateIndex)])
                         return false;
                 }
             return true;
@@ -149,15 +160,15 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
             {
                 var stack = new StateTransitionStack(_stateGraph.StateCount);
                 foreach (var initialTransition in _stateGraph.GetInitialTransitions())
-                    stack.Push(initialTransition);
+                    stack.Push(initialTransition, GetState(initialTransition->TargetStateIndex));
 
                 while (stack.Size > 0)
                 {
                     var current = stack.Pop();
 
-                    result[current->TargetStateIndex] = current->Formulas[index];
+                    result[GetState(current->TargetStateIndex)] = current->Formulas[index];
                     foreach (var outgoingTransition in _stateGraph.GetTransitions(current->TargetStateIndex))
-                        stack.Push(outgoingTransition);
+                        stack.Push(outgoingTransition, GetState(outgoingTransition->TargetStateIndex));
                 }
             }
             return result;
@@ -171,7 +182,7 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
             {
                 var stack = new StateTransitionStack(_stateGraph.StateCount);
                 foreach (var initialTransition in _stateGraph.GetInitialTransitions())
-                    stack.Push(initialTransition);
+                    stack.Push(initialTransition, GetState(initialTransition->TargetStateIndex));
 
                 while (stack.Size > 0)
                 {
@@ -179,8 +190,9 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
 
                     foreach (var outgoingTransition in _stateGraph.GetTransitions(current->TargetStateIndex))
                     {
-                        stack.Push(outgoingTransition);
-                        result[current->TargetStateIndex] |= source[outgoingTransition->TargetStateIndex];
+                        var successor = GetState(outgoingTransition->TargetStateIndex);
+                        stack.Push(outgoingTransition, successor);
+                        result[GetState(current->TargetStateIndex)] |= source[successor];
                     }
                 }
             }
@@ -204,17 +216,18 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
 
         private void PredecessorsWhile(int current, bool[] source, bool[] condition, bool[] result, bool[] seen)
         {
-            seen[current] = true;
-            result[current] = source[current]; // elements in source are reflexive-transitive predecessors of elements in source
+            var currentState = GetState(current);
+            seen[currentState] = true;
+            result[currentState] = source[currentState]; // elements in source are reflexive-transitive predecessors of elements in source
 
             foreach (var outgoingTransition in _stateGraph.GetTransitions(current))
                 unsafe
                 {
-                    if (!seen[outgoingTransition->TargetStateIndex])
+                    if (!seen[GetState(outgoingTransition->TargetStateIndex)])
                         PredecessorsWhile(outgoingTransition->TargetStateIndex, source, condition, result, seen);
 
                     // if a successor is a valid predecessor of source, and condition holds in current, then current is a valid predecessor:
-                    result[current] |= condition[current] && result[outgoingTransition->TargetStateIndex];
+                    result[currentState] |= condition[currentState] && result[GetState(outgoingTransition->TargetStateIndex)];
                 }
         }
 
@@ -230,7 +243,8 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
             foreach (var initialTransition in _stateGraph.GetInitialTransitions())
                 unsafe
                 {
-                    if (count[initialTransition->TargetStateIndex] == 0 && condition[initialTransition->TargetStateIndex])
+                    var initialState = GetState(initialTransition->TargetStateIndex);
+                    if (count[initialState] == 0 && condition[initialState])
                         NonTrivialStronglyConnectedWhere(initialTransition, condition, result, inComp, root, count, ref maxCount, stack);
                 }
 
@@ -239,34 +253,35 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
 
         private unsafe void NonTrivialStronglyConnectedWhere(Transition* current, bool[] condition, bool[] result, bool[] inComp, int[] root, int[] count, ref int maxCount, StateTransitionStack stack)
         {
-            var currentState = current->TargetStateIndex;
+            var currentState = GetState(current->TargetStateIndex);
             root[currentState] = currentState;
-            count[currentState] = maxCount++;
-            stack.Push(current);
+            count[currentState] = ++maxCount;
+            stack.Push(current, currentState);
 
             var hasSelfLoop = false;
-            foreach (var outgoingTransition in _stateGraph.GetTransitions(currentState))
+            foreach (var outgoingTransition in _stateGraph.GetTransitions(current->TargetStateIndex))
             {
-                hasSelfLoop |= outgoingTransition->TargetStateIndex == currentState;
-                if (!condition[outgoingTransition->TargetStateIndex])
+                var successorState = GetState(outgoingTransition->TargetStateIndex);
+                hasSelfLoop |= successorState == currentState;
+                if (!condition[successorState])
                     continue;
 
-                if (count[outgoingTransition->TargetStateIndex] == 0)
+                if (count[successorState] == 0)
                     NonTrivialStronglyConnectedWhere(outgoingTransition, condition, result, inComp, root, count, ref maxCount, stack);
-                if (!inComp[outgoingTransition->TargetStateIndex] && count[root[outgoingTransition->TargetStateIndex]] < count[root[currentState]])
-                    root[currentState] = root[outgoingTransition->TargetStateIndex];
+                if (!inComp[successorState] && count[root[successorState]] < count[root[currentState]])
+                    root[currentState] = root[successorState];
             }
 
             if (root[currentState] == currentState)
             {
                 var isNonTrivial = stack.Peek() != current || hasSelfLoop;
-                Transition* x;
+                int x;
                 do
                 {
-                    x = stack.Pop();
-                    inComp[x->TargetStateIndex] = true;
-                    result[x->TargetStateIndex] = isNonTrivial;
-                } while (x->TargetStateIndex != currentState);
+                    x = GetState(stack.Pop()->TargetStateIndex);
+                    inComp[x] = true;
+                    result[x] = isNonTrivial;
+                } while (x != currentState);
             }
         }
 
@@ -285,13 +300,13 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
                 _seen = new bool[capacity];
             }
 
-            public void Push(Transition* element)
+            public void Push(Transition* element, int state)
             {
-                if (_seen[element->TargetStateIndex])
+                if (_seen[state])
                     return;
 
                 _stack[++_top] = element;
-                _seen[element->TargetStateIndex] = true;
+                _seen[state] = true;
             }
 
             public Transition* Pop()
