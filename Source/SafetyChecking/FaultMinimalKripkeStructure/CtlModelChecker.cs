@@ -34,20 +34,16 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
 
     public class CtlModelChecker<TExecutableModel> where TExecutableModel : ExecutableModel<TExecutableModel>
     {
-        private readonly StateGraph<TExecutableModel> _stateGraph;
-        private readonly Formula[] _stateFormulas;
+        private StateGraph<TExecutableModel> _stateGraph;
+        private Formula[] _stateFormulas;
 
         private readonly Dictionary<Formula, bool[]> _checkedFormulas = new Dictionary<Formula, bool[]>();
         private readonly Dictionary<int, int> _stateNumbers = new Dictionary<int, int>();
         private int _maxState = -1;
- 
-        public CtlModelChecker(CoupledExecutableModelCreator<TExecutableModel> createModel)
-        {
-            Requires.NotNull(createModel, nameof(createModel));
 
-            var checker = new QualitativeChecker<TExecutableModel> { Configuration = { ProgressReportsOnly = false } };
-            _stateGraph = checker.GenerateStateGraph(createModel);
-            /* TODO: modify GenerateStateGraph to call createModel.Create with stateHeaderBytes > 0
+        public AnalysisResult<TExecutableModel> Check(CoupledExecutableModelCreator<TExecutableModel> createModel, Formula formula)
+        {
+            /* TODO: modify GenerateStateGraph to call createModel.Create with stateHeaderBytes > 0, must be multiple of 4
              * This specifies the bytes at the beginning of each state vector reserved for the model checker.
              * Use this instead of bool[] vectors, mark each state directly with result of each subformula check.
              * Replace _checkedFormulas by bool[] indicating whether subformula i has already been checked or not.
@@ -55,13 +51,13 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
              * 
              * When checking formula first replace it with simplified formula combining A, E with F,G,X,U and replacing state formulae with index (?)
              * */
+            Requires.NotNull(formula, nameof(formula));
+            Requires.NotNull(createModel, nameof(createModel));
+
+            var checker = new QualitativeChecker<TExecutableModel> { Configuration = { ProgressReportsOnly = false } };
+            _stateGraph = checker.GenerateStateGraph(createModel, 4);
             _stateFormulas = createModel.StateFormulasToCheckInBaseModel;
 
-            // TODO: possibly move this code to Check()
-        }
-
-        public AnalysisResult<TExecutableModel> Check(Formula formula)
-        {
             var satisfyingStates = CheckInternal(formula);
 
             return new AnalysisResult<TExecutableModel>

@@ -67,7 +67,7 @@ namespace SafetySharp.Analysis
 	        var stateFormulas = collector.IsCompilable ? new[] { formula } : collector.CollectedStateFormulas.ToArray();
 
             var createModel = SafetySharpRuntimeModel.CreateExecutedModelCreator(model, stateFormulas);
-            return new CtlModelChecker<SafetySharpRuntimeModel>(createModel).Check(formula);
+            return new CtlModelChecker<SafetySharpRuntimeModel>().Check(createModel, formula);
 	    }
 
 		/// <summary>

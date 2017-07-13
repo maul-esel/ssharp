@@ -78,7 +78,7 @@ namespace Tests
             if (!syntaxChecker.IsCtlFormula)
                 throw new ArgumentException("Can only check CTL formulae", nameof(formula));
 
-            return new CtlModelChecker<SafetySharpRuntimeModel>(createModel).Check(formula);
+            return new CtlModelChecker<SafetySharpRuntimeModel>().Check(createModel, formula);
         }
 
         public override Formula[] GetStateFormulas(Formula formula)
