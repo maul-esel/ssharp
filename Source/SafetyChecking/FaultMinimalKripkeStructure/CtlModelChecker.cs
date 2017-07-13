@@ -96,44 +96,69 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
             var unaryFormula = formula as UnaryFormula;
             if (unaryFormula != null)
             {
-                if (unaryFormula.Operator == UnaryOperator.Not)
-                    return _checkedFormulas[formula] = BoolVectorHelper.Not(CheckInternal(unaryFormula.Operand));
-
-                if (unaryFormula.Operator == UnaryOperator.Exists)
-                    return _checkedFormulas[formula] = CheckTemporalFormula(unaryFormula.Operand);
+                switch (unaryFormula.Operator)
+                {
+                    case UnaryOperator.Not:
+                        return _checkedFormulas[formula] = BoolVectorHelper.Not(CheckInternal(unaryFormula.Operand));
+                    case UnaryOperator.Exists:
+                        return _checkedFormulas[formula] = CheckExistsFormula(unaryFormula.Operand);
+                    case UnaryOperator.All:
+                        return _checkedFormulas[formula] = CheckAllFormula(unaryFormula.Operand);
+                }
             }
 
             var binaryFormula = formula as BinaryFormula;
             if (binaryFormula != null && binaryFormula.Operator != BinaryOperator.Until)
                 return _checkedFormulas[formula] = CheckBinaryFormula(binaryFormula);
 
-            throw new InvalidOperationException("Can only check normalized CTL formulae");
+            throw new ArgumentException("Can only check valid CTL formulae", nameof(formula));
         }
 
-        private bool[] CheckTemporalFormula(Formula formula)
+        private bool[] CheckAllFormula(Formula formula)
         {
             var unaryFormula = formula as UnaryFormula;
             if (unaryFormula != null)
             {
-                if (unaryFormula.Operator == UnaryOperator.Next)
-                    return ImmediatePredecessors(CheckInternal(unaryFormula.Operand));
-
-                if (unaryFormula.Operator == UnaryOperator.Globally)
+                var negatedOperand = BoolVectorHelper.Not(CheckInternal(unaryFormula.Operand));
+                switch (unaryFormula.Operator)
                 {
-                    var formulaResult = CheckInternal(unaryFormula.Operand);
-                    return PredecessorsWhile(NonTrivialStronglyConnectedWhere(formulaResult), formulaResult);
+                    case UnaryOperator.Next:
+                        return BoolVectorHelper.Not(CheckExistsNext(negatedOperand)); // AX \phi <=> ! EX ! \phi
+                    case UnaryOperator.Finally:
+                        return BoolVectorHelper.Not(CheckExistsGlobally(negatedOperand)); // AF \phi <=> ! EG ! \phi
+                    case UnaryOperator.Globally:
+                        return BoolVectorHelper.Not(CheckExistsFinally(negatedOperand)); // AG \phi <=> ! EF ! \phi
                 }
             }
 
             var binaryFormula = formula as BinaryFormula;
             if (binaryFormula != null && binaryFormula.Operator == BinaryOperator.Until)
             {
-                var leftResult = CheckInternal(binaryFormula.LeftOperand);
-                var rightResult = CheckInternal(binaryFormula.RightOperand);
-                return PredecessorsWhile(rightResult, leftResult);
+                var negatedLeft = BoolVectorHelper.Not(CheckInternal(binaryFormula.LeftOperand));
+                var negatedRight = BoolVectorHelper.Not(CheckInternal(binaryFormula.RightOperand));
+                return BoolVectorHelper.Not(CheckExistsWeakUntil(negatedRight, BoolVectorHelper.And(negatedLeft, negatedRight)));
             }
 
-            throw new InvalidOperationException("Can only check normalized CTL formulae");
+            throw new ArgumentException("Can only check valid CTL formulae", nameof(formula));
+        }
+
+        private bool[] CheckExistsFormula(Formula formula)
+        {
+            var unaryFormula = formula as UnaryFormula;
+            if (unaryFormula != null)
+            {
+                if (unaryFormula.Operator == UnaryOperator.Next)
+                    return CheckExistsNext(CheckInternal(unaryFormula.Operand));
+
+                if (unaryFormula.Operator == UnaryOperator.Globally)
+                    return CheckExistsGlobally(CheckInternal(unaryFormula.Operand));
+            }
+
+            var binaryFormula = formula as BinaryFormula;
+            if (binaryFormula != null && binaryFormula.Operator == BinaryOperator.Until)
+                return CheckExistsUntil(CheckInternal(binaryFormula.LeftOperand), CheckInternal(binaryFormula.RightOperand));
+
+            throw new ArgumentException("Can only check valid CTL formulae", nameof(formula));
         }
 
         private bool[] CheckBinaryFormula(BinaryFormula formula)
@@ -148,7 +173,7 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
                 case BinaryOperator.Implication: return BoolVectorHelper.Implies(left, right);
                 case BinaryOperator.Equivalence: return BoolVectorHelper.Equivalent(left, right);
                 default:
-                    throw new InvalidOperationException("Can only check normalized CTL formulae");
+                    throw new ArgumentException("Can only check valid CTL formulae", nameof(formula));
             }
         }
 
@@ -172,6 +197,31 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
                 }
             }
             return result;
+        }
+
+        private bool[] CheckExistsNext(bool[] operand)
+        {
+            return ImmediatePredecessors(operand);
+        }
+
+        private bool[] CheckExistsGlobally(bool[] operand)
+        {
+            return PredecessorsWhile(NonTrivialStronglyConnectedWhere(operand), operand);
+        }
+
+        private bool[] CheckExistsFinally(bool[] operand)
+        {
+            return CheckExistsUntil(BoolVectorHelper.True(operand.Length), operand);
+        }
+
+        private bool[] CheckExistsUntil(bool[] leftOperand, bool[] rightOperand)
+        {
+            return PredecessorsWhile(rightOperand, leftOperand);
+        }
+
+        private bool[] CheckExistsWeakUntil(bool[] leftOperand, bool[] rightOperand)
+        {
+            return BoolVectorHelper.Or(CheckExistsUntil(leftOperand, rightOperand), CheckExistsGlobally(leftOperand));
         }
 
         private bool[] ImmediatePredecessors(bool[] source)
@@ -322,6 +372,11 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
 
         private static class BoolVectorHelper
         {
+            public static bool[] True(int length)
+            {
+                return new bool[length].Select(b => true).ToArray();
+            }
+
             public static bool[] Not(bool[] input)
             {
                 return input.Select(b => !b).ToArray();

@@ -59,7 +59,6 @@
     <Compile Include="ExecutableModel\ModelException.cs" />
     <Compile Include="Formula\FormulaVisitors\CollectStateFormulasVisitor.cs" />
     <Compile Include="Formula\FormulaVisitors\CollectMaximalCompilableFormulasVisitor.cs" />
-    <Compile Include="Formula\FormulaVisitors\CtlNormalizerVisitor.cs" />
     <Compile Include="Formula\FormulaVisitors\IsCtlFormulaVisitor.cs" />
     <Compile Include="Formula\FormulaVisitors\IsFormulasStructurallyEquivalentVisitor.cs" />
     <Compile Include="Formula\FormulaVisitors\StateFormulaSetEvaluatorCompilationVisitor2.cs" />

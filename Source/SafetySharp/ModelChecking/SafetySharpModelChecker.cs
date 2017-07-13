@@ -62,10 +62,6 @@ namespace SafetySharp.Analysis
             if (!syntaxChecker.IsCtlFormula)
                 throw new ArgumentException("Can only check CTL formulae", nameof(formula));
 
-            var normalizer = new CtlNormalizerVisitor(trueFormula);
-            normalizer.Visit(formula);
-	        formula = normalizer.NormalizedFormula;
-
 	        var collector = new CollectMaximalCompilableFormulasVisitor();
             collector.Visit(formula);
 	        var stateFormulas = collector.IsCompilable ? new [] { formula } : collector.CollectedStateFormulas.ToArray();
