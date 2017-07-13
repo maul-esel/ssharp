@@ -41,17 +41,23 @@ namespace ISSE.SafetyChecking.FaultMinimalKripkeStructure
         private readonly Dictionary<int, int> _stateNumbers = new Dictionary<int, int>();
         private int _maxState = -1;
  
-        public CtlModelChecker(ExecutableModelCreator<TExecutableModel> createModel, Formula[] stateFormulas)
+        public CtlModelChecker(CoupledExecutableModelCreator<TExecutableModel> createModel)
         {
             Requires.NotNull(createModel, nameof(createModel));
-            Requires.NotNull(stateFormulas, nameof(stateFormulas));
-            Requires.That(stateFormulas.Length > 0, nameof(stateFormulas), "Expected at least one state formula.");
-
-            var modelGenerator = createModel.Create(stateFormulas);
 
             var checker = new QualitativeChecker<TExecutableModel> { Configuration = { ProgressReportsOnly = false } };
-            _stateGraph = checker.GenerateStateGraph(modelGenerator);
-            _stateFormulas = stateFormulas;
+            _stateGraph = checker.GenerateStateGraph(createModel);
+            /* TODO: modify GenerateStateGraph to call createModel.Create with stateHeaderBytes > 0
+             * This specifies the bytes at the beginning of each state vector reserved for the model checker.
+             * Use this instead of bool[] vectors, mark each state directly with result of each subformula check.
+             * Replace _checkedFormulas by bool[] indicating whether subformula i has already been checked or not.
+             * Eliminate duplicate subformulas first.
+             * 
+             * When checking formula first replace it with simplified formula combining A, E with F,G,X,U and replacing state formulae with index (?)
+             * */
+            _stateFormulas = createModel.StateFormulasToCheckInBaseModel;
+
+            // TODO: possibly move this code to Check()
         }
 
         public AnalysisResult<TExecutableModel> Check(Formula formula)

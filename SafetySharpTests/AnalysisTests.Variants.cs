@@ -25,6 +25,7 @@ namespace Tests
 {
 	using System;
 	using System.Linq;
+	using Analysis.Ctl;
 	using ISSE.SafetyChecking.ExecutableModel;
 	using SafetySharp.Analysis;
 	using SafetySharp.ModelChecking;
@@ -40,6 +41,11 @@ namespace Tests
 
 	public abstract class AnalysisTestsVariant
 	{
+	    public virtual Formula[] GetStateFormulas(Formula formula)
+	    {
+	        return new[] { formula };
+	    }
+
 		public abstract void CreateModelChecker(bool suppressCounterExampleGeneration,Action<string> logAction);
 
 		public abstract AnalysisResult<SafetySharpRuntimeModel>[] CheckInvariants(ExecutableModelCreator<SafetySharpRuntimeModel> createModel, params Formula[] invariants);
@@ -67,8 +73,21 @@ namespace Tests
 
         public override AnalysisResult<SafetySharpRuntimeModel> Check(CoupledExecutableModelCreator<SafetySharpRuntimeModel> createModel, Formula formula)
         {
-            //return SafetySharpModelChecker.CheckCtl(createModel, formula);
-            throw new NotImplementedException();
+            var syntaxChecker = new IsCtlFormulaVisitor();
+            syntaxChecker.Visit(formula);
+            if (!syntaxChecker.IsCtlFormula)
+                throw new ArgumentException("Can only check CTL formulae", nameof(formula));
+
+            return new CtlModelChecker<SafetySharpRuntimeModel>(createModel).Check(formula);
+        }
+
+        public override Formula[] GetStateFormulas(Formula formula)
+        {
+            var collector = new CollectMaximalCompilableFormulasVisitor();
+            collector.Visit(formula);
+            if (collector.IsCompilable)
+                return new[] { formula };
+            return collector.CollectedStateFormulas.ToArray();
         }
     }
 

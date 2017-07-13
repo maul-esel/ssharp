@@ -31,7 +31,7 @@ namespace Tests.Analysis.Ctl
 		protected override void Check()
 		{
 			var c = new C();
-			CheckCtl(AF(AG(c.G)), true, c).ShouldBe(true);
+			Check(AF(AG(c.G)), c).ShouldBe(true);
 		}
 
 		private class C : Component

@@ -55,19 +55,19 @@ namespace SafetySharp.Analysis
 			return new LtsMin().Check(SafetySharpRuntimeModel.CreateExecutedModelCreator(model,formula), formula);
 		}
 
-	    public static AnalysisResult<SafetySharpRuntimeModel> CheckCtl(ModelBase model, Formula formula, Formula trueFormula)
+	    public static AnalysisResult<SafetySharpRuntimeModel> CheckCtl(ModelBase model, Formula formula)
 	    {
             var syntaxChecker = new IsCtlFormulaVisitor();
             syntaxChecker.Visit(formula);
             if (!syntaxChecker.IsCtlFormula)
                 throw new ArgumentException("Can only check CTL formulae", nameof(formula));
 
-	        var collector = new CollectMaximalCompilableFormulasVisitor();
+            var collector = new CollectMaximalCompilableFormulasVisitor();
             collector.Visit(formula);
-	        var stateFormulas = collector.IsCompilable ? new [] { formula } : collector.CollectedStateFormulas.ToArray();
+	        var stateFormulas = collector.IsCompilable ? new[] { formula } : collector.CollectedStateFormulas.ToArray();
 
-	        var createModel = SafetySharpRuntimeModel.CreateExecutedModelFromFormulasCreator(model);
-            return new CtlModelChecker<SafetySharpRuntimeModel>(createModel, stateFormulas).Check(formula);
+            var createModel = SafetySharpRuntimeModel.CreateExecutedModelCreator(model, stateFormulas);
+            return new CtlModelChecker<SafetySharpRuntimeModel>(createModel).Check(formula);
 	    }
 
 		/// <summary>

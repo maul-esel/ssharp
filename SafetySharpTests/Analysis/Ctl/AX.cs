@@ -33,8 +33,8 @@ namespace Tests.Analysis.Ctl
 		{
 			var c = new C();
 
-			CheckCtl(AX(c.G), true, c).ShouldBe(true);
-			CheckCtl(AX(!c.G), true, c).ShouldBe(false);
+			Check(AX(c.G), c).ShouldBe(true);
+			Check(AX(!c.G), c).ShouldBe(false);
 		}
 
 		private class C : Component

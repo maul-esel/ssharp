@@ -109,18 +109,12 @@ namespace Tests
 			var logAction = (Action<string>)(message => Output.Log("{0}", message));
 			analysisTestsVariant.CreateModelChecker(SuppressCounterExampleGeneration, logAction);
 
-			var modelCreator = SafetySharpRuntimeModel.CreateExecutedModelCreator(TestModel.InitializeModel(components),formula);
+			var modelCreator = SafetySharpRuntimeModel.CreateExecutedModelCreator(TestModel.InitializeModel(components), analysisTestsVariant.GetStateFormulas(formula));
 			var result = analysisTestsVariant.Check(modelCreator, formula);
 
 			CounterExample = result.CounterExample;
 			return result.FormulaHolds;
 		}
-
-	    protected bool CheckCtl(Formula formula, Formula trueFormula, params IComponent[] components)
-	    {
-	        return SafetySharpModelChecker.CheckCtl(TestModel.InitializeModel(components), formula, trueFormula).FormulaHolds;
-	    }
-
 
 		protected SafetyAnalysisResults<SafetySharpRuntimeModel> DccaWithMaxCardinality(Formula hazard, int maxCardinality, params IComponent[] components)
 		{
