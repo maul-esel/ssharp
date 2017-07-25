@@ -42,6 +42,8 @@
     <Compile Include="ConsumeCapability.cs" />
     <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="ICapabilityHandler.cs" />
+    <Compile Include="IDeadlockAvoidanceStrategy.cs" />
+    <Compile Include="NoDeadlockAvoidance.cs" />
     <Compile Include="ProduceCapability.cs" />
     <Compile Include="Reconfiguration\AbstractController.cs" />
     <Compile Include="Reconfiguration\AbstractMiniZincController.cs" />

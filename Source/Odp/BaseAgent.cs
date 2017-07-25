@@ -47,6 +47,9 @@ namespace SafetySharp.Odp
 		[Hidden]
 		public IRoleSelector RoleSelector { get; protected set; }
 
+		[Hidden]
+		public IDeadlockAvoidanceStrategy DeadlockAvoidance { get; protected set; } = NoDeadlockAvoidance.Instance;
+
 		protected BaseAgent()
 		{
 			ID = _maxID++;
@@ -141,12 +144,13 @@ namespace SafetySharp.Odp
 
 		private void ChooseRole()
 		{
-			var role = RoleSelector.ChooseRole(_resourceRequests);
+			var role = RoleSelector.ChooseRole(DeadlockAvoidance.Filter(_resourceRequests));
 			_hasRole = role.HasValue;
 			if (_hasRole)
 			{
 				_currentRole = role.Value;
 				_resourceRequests.RemoveAll(request => request.Source == _currentRole.PreCondition.Port);
+				DeadlockAvoidance.UpdateChosenRole(_currentRole);
 			}
 		}
 
