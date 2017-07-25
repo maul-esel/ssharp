@@ -187,7 +187,6 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 			{
 				var availableResourceCount = _resources.Count(resource => resource.Task == role.Task);
 				return availableResourceCount > 0
-					   && !_tasks.Any(task => task.IsResourceInProduction)
 					   && base.CanExecute(role);
 			}
 			return base.CanExecute(role);
@@ -202,7 +201,6 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 			Resource = _resources[index];
 			_resources.RemoveAt(index);
 
-			(Resource.Task as Task).IsResourceInProduction = true;
 			Robot?.ProduceWorkpiece((Resource as Resource).Workpiece);
 			Resource.OnCapabilityApplied(capability);
 		}
@@ -245,7 +243,6 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 			Resource.OnCapabilityApplied(capability);
 			Robot?.ConsumeWorkpiece();
-			(Resource.Task as Task).IsResourceInProduction = false;
 			Resource = null;
 		}
 

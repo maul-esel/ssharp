@@ -71,12 +71,6 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 			await base.UpdateAsync();
 		}
 
-		protected override void DropResource()
-		{
-			(Resource.Task as Task).IsResourceInProduction = false;
-			base.DropResource();
-		}
-
 		public void CheckAllocatedCapabilities()
 		{
 			foreach (var input in Inputs.ToArray())
