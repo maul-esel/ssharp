@@ -29,12 +29,12 @@ namespace SafetySharp.Odp
 		private NoDeadlockAvoidance() { }
 		public static NoDeadlockAvoidance Instance { get; } = new NoDeadlockAvoidance();
 
-		public IEnumerable<BaseAgent.ResourceRequest> Filter(IEnumerable<BaseAgent.ResourceRequest> requests)
+		public IEnumerable<BaseAgent.ResourceRequest> Filter(BaseAgent agent, IEnumerable<BaseAgent.ResourceRequest> requests)
 		{
 			return requests;
 		}
 
-		public void UpdateChosenRole(Role role)
+		public void UpdateChosenRole(BaseAgent agent, Role role)
 		{
 		}
 	}

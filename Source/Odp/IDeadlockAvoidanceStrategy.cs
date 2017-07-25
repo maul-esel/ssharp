@@ -26,7 +26,7 @@ namespace SafetySharp.Odp
 
 	public interface IDeadlockAvoidanceStrategy
 	{
-		IEnumerable<BaseAgent.ResourceRequest> Filter(IEnumerable<BaseAgent.ResourceRequest> requests);
-		void UpdateChosenRole(Role role);
+		IEnumerable<BaseAgent.ResourceRequest> Filter(BaseAgent agent, IEnumerable<BaseAgent.ResourceRequest> requests);
+		void UpdateChosenRole(BaseAgent agent, Role role);
 	}
 }
