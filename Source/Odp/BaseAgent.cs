@@ -170,30 +170,33 @@ namespace SafetySharp.Odp
 
 		#region resource flow
 
-		public List<BaseAgent> Inputs { get; } = new List<BaseAgent>(MaximumAgentCount);
-		public List<BaseAgent> Outputs { get; } = new List<BaseAgent>(MaximumAgentCount);
+		private readonly List<BaseAgent> _inputs = new List<BaseAgent>(MaximumAgentCount);
+		private readonly List<BaseAgent> _outputs = new List<BaseAgent>(MaximumAgentCount);
 
-		public void Connect(BaseAgent successor)
+		public virtual IEnumerable<BaseAgent> Inputs => _inputs;
+		public virtual IEnumerable<BaseAgent> Outputs => _outputs;
+
+		public virtual void Connect(BaseAgent successor)
 		{
-			if (!Outputs.Contains(successor))
-				Outputs.Add(successor);
-			if (!successor.Inputs.Contains(this))
-				successor.Inputs.Add(this);
+			if (!_outputs.Contains(successor))
+				_outputs.Add(successor);
+			if (!successor._inputs.Contains(this))
+				successor._inputs.Add(this);
 		}
 
-		public void BidirectionallyConnect(BaseAgent neighbor)
+		public virtual void BidirectionallyConnect(BaseAgent neighbor)
 		{
 			Connect(neighbor);
 			neighbor.Connect(this);
 		}
 
-		public void Disconnect(BaseAgent successor)
+		public virtual void Disconnect(BaseAgent successor)
 		{
-			Outputs.Remove(successor);
-			successor.Inputs.Remove(this);
+			_outputs.Remove(successor);
+			successor._inputs.Remove(this);
 		}
 
-		public void BidirectionallyDisconnect(BaseAgent neighbor)
+		public virtual void BidirectionallyDisconnect(BaseAgent neighbor)
 		{
 			Disconnect(neighbor);
 			neighbor.Disconnect(this);

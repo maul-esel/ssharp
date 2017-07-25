@@ -24,6 +24,7 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 {
 	using System;
 	using System.Collections.Generic;
+	using System.Linq;
 	using SafetySharp.Modeling;
 	using Odp;
 	using Odp.Reconfiguration;
@@ -40,6 +41,10 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 	    public bool HasResource => Resource != null;
 
+		// only return inputs / outputs that are still connected
+		public override IEnumerable<BaseAgent> Inputs => base.Inputs.Where(input => CheckInput((Agent)input));
+		public override IEnumerable<BaseAgent> Outputs => base.Outputs.Where(output => CheckOutput((Agent)output));
+
         protected Agent()
 	    {
 	        ConfigurationUpdateFailed.Name = $"{Name}.{nameof(ConfigurationUpdateFailed)}";
@@ -55,8 +60,6 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 		protected override async System.Threading.Tasks.Task UpdateAsync()
 		{
-			CheckAllocatedCapabilities();
-
 		    if (_justRestored)
 		    {
 		        _justRestored = false;
@@ -69,21 +72,6 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 					Tuple.Create(TaskQueue.Dequeue() as ITask, new State(this, null, true))
 				});
 			await base.UpdateAsync();
-		}
-
-		public void CheckAllocatedCapabilities()
-		{
-			foreach (var input in Inputs.ToArray())
-			{
-				if (!CheckInput((Agent)input))
-					input.Disconnect(this);
-			}
-
-			foreach (var output in Outputs.ToArray())
-			{
-				if (!CheckOutput((Agent)output))
-					Disconnect(output);
-			}
 		}
 
 		protected virtual bool CheckAllocatedCapability(ICapability capability)
