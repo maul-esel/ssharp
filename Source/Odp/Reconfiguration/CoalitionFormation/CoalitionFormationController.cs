@@ -78,6 +78,8 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
                 // merge minimal fragments from all strategies
                 var minTfr = fragments.Length > 0 ? TaskFragment.Merge(fragments) : TaskFragment.Identity(coalition.Task);
 
+				coalition.CTF.Prepend(minTfr.Start);
+				coalition.CTF.Append(minTfr.End);
 				await coalition.InviteCtfAgents();
 
 				do
@@ -158,7 +160,7 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 					var changedPositions = Enumerable.Range(0, newDistribution.Length)
 													 .Where(i => newDistribution[i] != coalition.RecoveredDistribution[i])
 													 .ToArray();
-					return changedPositions.Max() - changedPositions.Min();
+					return changedPositions.Any() ? changedPositions.Max() - changedPositions.Min() : 0;
 				});
 		}
 
@@ -275,27 +277,33 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 			// clear old roles from core agents
 			foreach (var agent in suggestion.CoreAgents)
 			{
-				var obsoleteRoles = agent.AllocatedRoles.Where(role => suggestion.TFR.Start <= role.PreCondition.StateLength
-																	   || role.PostCondition.StateLength <= suggestion.TFR.End);
+				// roles that intersect with TFR:
+				var obsoleteRoles = agent.AllocatedRoles.Where(role => suggestion.TFR.Start <= role.PostCondition.StateLength
+																	   && role.PreCondition.StateLength <= suggestion.TFR.End);
 				config.RemoveRoles(agent, obsoleteRoles.ToArray());
 			}
 
-			var previousRole = default(Role);
-			int firstCoreAgent = 0;
-			if (!suggestion.CoreAgents.Contains(resourceFlow[0]))
+			// initialize with no predecessor (TFR starts at 0, no entry edge agent exists)
+			BaseAgent previousAgent = null;
+			Condition? preCondition = null;
+			var firstCoreAgent = 0;
+
+			if (suggestion.HasEntryEdgeAgent)
 			{
 				// handle entry edge agent: set output port
-				previousRole = resourceFlow[0].AllocatedRoles
-												  .Single(role => role.PostCondition.StateLength == suggestion.TFR.Start);
-				config.RemoveRoles(resourceFlow[0], previousRole); // remove old role
+				previousAgent = resourceFlow[0];
+				var previousRole = previousAgent.AllocatedRoles
+												.Single(role => role.PostCondition.StateLength == suggestion.TFR.Start);
+				config.RemoveRoles(previousAgent, previousRole); // remove old role
 				previousRole.PostCondition.Port = resourceFlow[1];
-				config.AddRoles(resourceFlow[0], previousRole); // re-add updated role
+				config.AddRoles(previousAgent, previousRole); // re-add updated role
 
 				firstCoreAgent++;
+				preCondition = previousRole.PostCondition;
 			}
 
-			int lastCoreAgent = resourceFlow.Length - 1;
-			if (!suggestion.CoreAgents.Contains(resourceFlow[resourceFlow.Length - 1]))
+			var lastCoreAgent = resourceFlow.Length - 1;
+			if (suggestion.HasExitEdgeAgent)
 			{
 				// handle exit edge agent: set input port
 				var exitEdgeAgent = resourceFlow[resourceFlow.Length - 1];
@@ -316,14 +324,15 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 			for (var i = firstCoreAgent; i <= lastCoreAgent; ++i)
 			{
 				var agent = resourceFlow[i];
-				var role = GetRole(task, i > 0 ? resourceFlow[i - 1] : null, i > 0 ? (Condition?)previousRole.PostCondition : null);
+				var role = GetRole(task, previousAgent, preCondition);
 				role.PostCondition.Port = i < resourceFlow.Length - 1 ? resourceFlow[i + 1] : null;
 
 				while (currentState <= end && suggestion.CtfDistribution[currentState - offset] == agent)
 					role.AddCapability(task.RequiredCapabilities[currentState++]);
 
 				config.AddRoles(agent, role);
-				previousRole = role;
+				previousAgent = agent;
+				preCondition = role.PostCondition;
 			}
 
 			return config;
@@ -340,6 +349,9 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 			public ISet<BaseAgent> CoreAgents { get; } = new HashSet<BaseAgent>();
 			public ISet<BaseAgent> EdgeAgents { get; } = new HashSet<BaseAgent>();
 			private readonly HashSet<BaseAgent> _resourceFlowAgents = new HashSet<BaseAgent>();
+
+			public bool HasEntryEdgeAgent { get; private set; }
+			public bool HasExitEdgeAgent { get; private set; }
 
 			public List<BaseAgent> AgentsToConnect { get; } = new List<BaseAgent>();
 
@@ -385,13 +397,19 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 
 				// compute sequence of agents to be connected by resource flow
 				if (startEdgeAgent != null)
+				{
 					AgentsToConnect.Add(startEdgeAgent);
+					HasEntryEdgeAgent = true;
+				}
 
 				var coreAgents = CtfDistribution.Slice(TFR.Start - offset, TFR.End - offset).ToArray();
 				AgentsToConnect.AddRange(coreAgents.Where((t, i) => i == 0 || coreAgents[i - 1] != t));
 
 				if (endEdgeAgent != null)
+				{
 					AgentsToConnect.Add(endEdgeAgent);
+					HasExitEdgeAgent = true;
+				}
 			}
 
 			private void FindCoreAgents()
