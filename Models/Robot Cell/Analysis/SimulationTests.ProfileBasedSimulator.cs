@@ -74,10 +74,10 @@ namespace SafetySharp.CaseStudies.RobotCell.Analysis
 				var seed = Environment.TickCount;
 				Console.WriteLine("SEED: " + seed);
 				var rd = new Random(seed);
-				using (var sw = new StreamWriter("testRD.csv", true))
-				{
-					sw.WriteLine("currentRDFail; currentDistValueFail; currentRDRepair; currentDistValueRepair; failed; repaired");
-				}
+//				using (var sw = new StreamWriter("testRD.csv", true))
+//				{
+//					sw.WriteLine("currentRDFail; currentDistValueFail; currentRDRepair; currentDistValueRepair; failed; repaired");
+//				}
 				for (var x = 0; x < numberOfSteps; x++)
 				{
 					foreach (var fault in _faults)
@@ -100,8 +100,29 @@ namespace SafetySharp.CaseStudies.RobotCell.Analysis
 					_simulator.SimulateStep();
 				}
 				var throughput = _model.Resources.Select(w => w.IsComplete).Count();
-				CreateStats(throughput, (IPerformanceMeasurementController)_model.Controller);
+			    ExportStats(throughput, (IPerformanceMeasurementController)_model.Controller);
 			}
+
+		    private static void ExportStats(int throughput, IPerformanceMeasurementController modelController)
+		    {
+
+		        var timeValueData = modelController.CollectedTimeValues;
+		        foreach (var key in timeValueData.Keys)
+		        {
+		            var reconfTime = timeValueData[key].Select(tuple => (int)tuple.Item2.Ticks).ToArray();
+		            var productionTime = timeValueData[key].Select(tuple => (int)tuple.Item1.Ticks).ToArray();
+                    using (var sw = new StreamWriter("Agent" + key + "Export" + System.DateTime.Now.Ticks + ".csv", true))
+		            {
+                        sw.WriteLine("ReconfTime; ProductionTime");
+		                for (var i = 0; i < reconfTime.Length; i++)
+		                {
+		                    sw.WriteLine(reconfTime[i] + "; " + productionTime[i]);
+		                }
+		            }
+                }
+
+                
+		    }
 
 			private static void CreateStats(int throughput, IPerformanceMeasurementController modelController)
 			{
