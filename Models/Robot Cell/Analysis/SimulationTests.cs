@@ -37,14 +37,20 @@ namespace SafetySharp.CaseStudies.RobotCell.Analysis
 
     public partial class SimulationTests
 	{
-        [Test]
-		public void Simulate()
-		{
-			var model = SampleModels.PerformanceMeasurement1<FastController>();
-			model.Faults.SuppressActivations();
+	    [Test]
+	    public void TempTestSystemGeneratorTest()
+	    {
+	        var tsg = new TestSystemGenerator();
+            var result = tsg.Generate(100, 10, 40);
+	        ;
+	    }
 
-			var simulator = new Simulator(model);
-            PrintTrace(simulator, model, steps: 120);
+	    [Test, TestCaseSource(nameof(PerformanceMeasurementConfigurations))]
+        public void Simulate(Model model)
+        {
+            model.Faults.SuppressActivations();
+            var simulator = new Simulator(model);
+            PrintTrace(simulator, model, steps: 100);
 		}
 
         [Test, TestCaseSource(nameof(PerformanceMeasurementConfigurations))]
