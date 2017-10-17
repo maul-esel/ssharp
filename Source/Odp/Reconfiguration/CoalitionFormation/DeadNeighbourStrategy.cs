@@ -38,7 +38,7 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 			var affectedRoles = from member in coalition.Members
 								let agent = member.BaseAgent
 								from role in agent.AllocatedRoles
-								where role.Task == coalition.Task && (role.PreCondition.Port?.IsAlive == false || role.PostCondition.Port?.IsAlive == false)
+								where role.Task == coalition.Task && (role.Input?.IsAlive == false || role.Output?.IsAlive == false)
 								select role;
 
 			var fragments = new List<TaskFragment>();
@@ -49,13 +49,13 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 				var start = role.PreCondition.StateLength;
 				var end = role.PostCondition.StateLength;
 
-				if (role.PreCondition.Port?.IsAlive == false) // find predecessor
+				if (role.Input?.IsAlive == false) // find predecessor
 				{
 					var predecessor = await RecruitConnectedAgent(role, coalition, FindLastPredecessor);
 					start = predecessor.Item2.PreCondition.StateLength;
 				}
 
-				if (role.PostCondition.Port?.IsAlive == false) // find successor
+				if (role.Output?.IsAlive == false) // find successor
 				{
 					var successor = await RecruitConnectedAgent(role, coalition, FindFirstSuccessor);
 					end = successor.Item2.PostCondition.StateLength;
@@ -66,15 +66,14 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 
 			// once predecessor / successor are in the coalition,
 			// Coalition.InviteCtf() will fill the gaps in the CTF
-			// (called in CalculateConfigurations()).
+			// (called in CalculateConfigurationsAsync()).
 
-			// unclear: is it necessary to surround empty predecessors / successors by empty roles?
-			// ~> test such situations
+			// TODO unclear: is it necessary to surround empty predecessors / successors by empty roles? ~> test such situations
 
 			// coalition might have lost capabilities due to dead agents
 			await MissingCapabilitiesStrategy.Instance.RecruitNecessaryAgents(coalition);
 
-			return TaskFragment.Merge(fragments);
+			return TaskFragment.Merge(coalition.Task, fragments);
 		}
 
 		// used to recruit predecessor / successor of a role connected to a dead agent

@@ -34,8 +34,8 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 	internal class AgentQueue : IEnumerable<BaseAgent>
 	{
 		private readonly HashSet<BaseAgent> _knownParticipants;
-		private readonly LinkedList<BaseAgent> _inputQueue = new LinkedList<BaseAgent>();
-		private readonly LinkedList<BaseAgent> _outputQueue = new LinkedList<BaseAgent>();
+		private readonly LinkedList<BaseAgent> _inputQueue;
+		private readonly LinkedList<BaseAgent> _outputQueue;
 
 		private LinkedListNode<BaseAgent> _firstInputParticipant;
 		private LinkedListNode<BaseAgent> _firstOutputParticipant;
@@ -59,7 +59,7 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 		{
 			return agent.AllocatedRoles
 				.Where(role => role.Task == _coalition.Task)
-				.SelectMany(role => new[] { role.PreCondition.Port, role.PostCondition.Port })
+				.SelectMany(role => new[] { role.Input, role.Output })
 				.Distinct()
 				.Where(participant => participant != null && participant.IsAlive);
 		}

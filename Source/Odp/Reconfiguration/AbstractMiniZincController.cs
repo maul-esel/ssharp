@@ -39,7 +39,7 @@ namespace SafetySharp.Odp.Reconfiguration
 		private string _outputFile;
 
 		public static string MiniZinc = "minizinc.exe";
-		private static int _counter = 0;
+		private static int _counter;
 
 		protected AbstractMiniZincController(string constraintsModel, BaseAgent[] agents) : base(agents)
 		{
@@ -47,7 +47,7 @@ namespace SafetySharp.Odp.Reconfiguration
 		}
 
 		// synchronous implementation
-		public override Task<ConfigurationUpdate> CalculateConfigurations(object context, ITask task)
+		public override Task<ConfigurationUpdate> CalculateConfigurationsAsync(object context, ITask task)
 		{
 			var configs = new ConfigurationUpdate();
 		    configs.RecordInvolvement(GetAvailableAgents()); // central controller uses all agents!
@@ -119,8 +119,7 @@ namespace SafetySharp.Odp.Reconfiguration
 			for (int i = 0; i < agentIds.Length; ++i)
 			{
 				var agent = GetAgent(agentIds[i]);
-				// connect to previous role
-				role.PostCondition.Port = agent;
+
 				// get new role
 				role = GetRole(task, lastAgent, lastAgent == null ? null : (Condition?)role.PostCondition);
 
@@ -130,11 +129,13 @@ namespace SafetySharp.Odp.Reconfiguration
 					if (capabilityIds[i] >= 0)
 					{
 						var capability = task.RequiredCapabilities[capabilityIds[i]];
-						role.AddCapability(capability);
+						role = role.WithCapability(capability);
 					}
 				}
 
-				configs.AddRoles(agent, role);
+				var nextAgent = i + 1 < agentIds.Length ? GetAgent(agentIds[i + 1]) : null;
+				configs.AddRoles(agent, role.WithOutput(nextAgent));
+
 				lastAgent = agent;
 			}
 		}

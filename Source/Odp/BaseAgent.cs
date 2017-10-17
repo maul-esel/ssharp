@@ -35,8 +35,8 @@ namespace SafetySharp.Odp
 		public static int MaximumResourceCount = 20;
 		public static int MaximumRoleCount = 40;
 
-		private static uint _maxID = 0;
-		public uint ID { get; }
+		private static uint _maxId;
+		public uint Id { get; }
 
 		public abstract IEnumerable<ICapability> AvailableCapabilities { get; }
 
@@ -49,8 +49,9 @@ namespace SafetySharp.Odp
 
 		protected BaseAgent()
 		{
-			ID = _maxID++;
+			Id = _maxId++;
 			RoleSelector = new FairRoleSelector(this);
+			RoleExecutor = new RoleExecutor(this);
 		}
 
 		public override void Update()
@@ -66,10 +67,7 @@ namespace SafetySharp.Odp
 
 		#region functional part
 
-		private Role _currentRole;
-		private bool _hasRole;
-
-		protected internal Role? CurrentRole => _hasRole ? (Role?)_currentRole : null;
+		public RoleExecutor RoleExecutor { get; }
 
 		public Resource Resource { get; protected set; }
 
@@ -90,12 +88,12 @@ namespace SafetySharp.Odp
 			_stateMachine.Transition( // abort work if current task has configuration issues
 				from: new[] { States.ChooseRole, States.WaitingForResource, States.ExecuteRole, States.Output, States.ResourceGiven },
 				to: States.Idle,
-				guard: _hasRole && _deficientConfiguration,
+				guard: RoleExecutor.IsExecuting && _deficientConfiguration,
 				action: () =>
 				{
 					if (Resource != null)
 						DropResource();
-					_hasRole = false;
+					RoleExecutor.EndExecution();
 					_deficientConfiguration = false;
 				});
 
@@ -107,31 +105,31 @@ namespace SafetySharp.Odp
 				.Transition( // no work found (or deadlock avoidance or similar reasons)
 					from: States.ChooseRole,
 					to: States.Idle,
-					guard: !_hasRole)
+					guard: !RoleExecutor.IsExecuting)
 				.Transition( // going to work on pre-existing resource (first transfer it)
 					from: States.ChooseRole,
 					to: States.WaitingForResource,
-					guard: _hasRole && _currentRole.PreCondition.Port != null,
-					action: () => InitiateResourceTransfer(_currentRole.PreCondition.Port))
+					guard: RoleExecutor.IsExecuting && RoleExecutor.Input != null,
+					action: () => InitiateResourceTransfer(RoleExecutor.Input))
 				.Transition( // going to produce new resource (no transfer necessary)
 					from: States.ChooseRole,
 					to: States.ExecuteRole,
-					guard: _hasRole && _currentRole.PreCondition.Port == null)
+					guard: RoleExecutor.IsExecuting && RoleExecutor.Input == null)
 				.Transition( // actual work on resource
 					from: States.ExecuteRole,
 					to: States.ExecuteRole,
-					guard: !_currentRole.IsCompleted,
-					action: () => _currentRole.ExecuteStep(this))
+					guard: !RoleExecutor.IsCompleted,
+					action: () => RoleExecutor.ExecuteStep())
 				.Transition( // work is done -- pass resource on
 					from: States.ExecuteRole,
 					to: States.Output,
-					guard: _currentRole.IsCompleted && _currentRole.PostCondition.Port != null,
-					action: () => _currentRole.PostCondition.Port.ResourceReady(this, _currentRole.PostCondition))
+					guard: RoleExecutor.IsCompleted && RoleExecutor.Output != null,
+					action: () => RoleExecutor.Output.ResourceReady(this, RoleExecutor.Role.Value.PostCondition))
 				.Transition( // resource has been consumed
 					from: States.ExecuteRole,
 					to: States.Idle,
-					guard: _currentRole.IsCompleted && Resource == null && _currentRole.PostCondition.Port == null,
-					action: () => _hasRole = false);
+					guard: RoleExecutor.IsCompleted && Resource == null && RoleExecutor.Output == null,
+					action: () => RoleExecutor.EndExecution());
 		}
 
 		protected virtual void DropResource()
@@ -142,25 +140,24 @@ namespace SafetySharp.Odp
 		private void ChooseRole()
 		{
 			var role = RoleSelector.ChooseRole(_resourceRequests);
-			_hasRole = role.HasValue;
-			if (_hasRole)
-			{
-				_currentRole = role.Value;
-				_resourceRequests.RemoveAll(request => request.Source == _currentRole.PreCondition.Port);
-			}
+			if (!role.HasValue)
+				return;
+
+			RoleExecutor.BeginExecution(role.Value);
+			_resourceRequests.RemoveAll(request => request.Source == role.Value.Input);
 		}
 
 		public virtual bool CanExecute(Role role)
 		{
 			// producer roles and roles with open resource requests can be executed, unless they're locked
 			return !role.IsLocked
-				   && (role.PreCondition.Port == null || _resourceRequests.Any(req => role.Equals(req.Role)));
+				   && (role.Input == null || _resourceRequests.Any(req => role.Equals(req.Role)));
 		}
 
 		private Role[] GetRoles(BaseAgent source, Condition condition)
 		{
 			return AllocatedRoles.Where(role =>
-				!role.IsLocked && role.PreCondition.Port == source && role.PreCondition.StateMatches(condition)
+				!role.IsLocked && role.Input == source && role.PreCondition.StateMatches(condition)
 			).ToArray();
 		}
 
@@ -239,7 +236,7 @@ namespace SafetySharp.Odp
 			_stateMachine.Transition(
 				from: States.Output,
 				to: States.ResourceGiven,
-				action: () => _currentRole.PostCondition.Port.TakeResource(Resource)
+				action: () => RoleExecutor.Output.TakeResource(Resource)
 			);
 		}
 
@@ -251,7 +248,7 @@ namespace SafetySharp.Odp
 			_stateMachine.Transition(
 				from: States.WaitingForResource,
 				to: States.ExecuteRole,
-				action: _currentRole.PreCondition.Port.ResourcePickedUp
+				action: RoleExecutor.Input.ResourcePickedUp
 			);
 		}
 
@@ -262,7 +259,7 @@ namespace SafetySharp.Odp
 			_stateMachine.Transition(
 				from: States.ResourceGiven,
 				to: States.Idle,
-				action: () => _hasRole = false
+				action: () => RoleExecutor.EndExecution()
 			);
 		}
 
@@ -275,13 +272,13 @@ namespace SafetySharp.Odp
 		public virtual bool IsAlive => true;
 
 		[Hidden]
-		private bool _deficientConfiguration = false;
+		private bool _deficientConfiguration;
 
 		[Hidden]
 		public Reconfiguration.IReconfigurationStrategy ReconfigurationStrategy { get; set; }
 
 		protected virtual InvariantPredicate[] MonitoringPredicates { get; } = {
-			Invariant.IOConsistency,
+			Invariant.IoConsistency,
 			Invariant.NeighborsAliveGuarantee,
 			Invariant.ResourceConsistency,
 			Invariant.CapabilityConsistency
@@ -323,7 +320,7 @@ namespace SafetySharp.Odp
 	        // stop work on deficient tasks
 	        _resourceRequests.RemoveAll(request => request.Role.Task == task);
 	        // abort execution of current role if necessary
-	        _deficientConfiguration = _hasRole && _currentRole.Task == task;
+	        _deficientConfiguration = RoleExecutor.IsExecuting && RoleExecutor.Task == task;
         }
 
 		private void VerifyInvariants()
@@ -379,48 +376,5 @@ namespace SafetySharp.Odp
 		}
 
 		#endregion
-
-
-	    public static bool operator ==(BaseAgent a, BaseAgent b)
-	    {
-            // If both are null, or both are same instance, return true.
-            if (System.Object.ReferenceEquals(a, b))
-            {
-                return true;
-            }
-
-            // If one is null, but not both, return false.
-            if (((object)a == null) || ((object)b == null))
-            {
-                return false;
-            }
-
-	        return a.ID == b.ID;
-	    }
-
-	    public static bool operator !=(BaseAgent a, BaseAgent b)
-	    {
-	        return !(a == b);
-	    }
-
-	    public override bool Equals(System.Object obj)
-	    {
-            // If parameter cannot be cast to ThreeDPoint return false:
-            BaseAgent p = obj as BaseAgent;
-            if ((object)p == null)
-            {
-                return false;
-            }
-
-            return base.Equals(obj) && ID == p.ID;
-        }
-
-	    public bool Equals(BaseAgent a)
-	    {
-	        return base.Equals((BaseAgent)a) && ID == a.ID;
-	    }
-
-	    public override int GetHashCode() => (int)(ID * 42);
-
     }
 }

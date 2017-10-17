@@ -27,6 +27,7 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 	using System.Diagnostics;
 	using System.Linq;
 	using System.Threading.Tasks;
+	using Modeling;
 
 	public partial class Coalition
 	{
@@ -41,7 +42,7 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 		/// <summary>
 		/// The connected task fragment handled by coalition members
 		/// </summary>
-		public TaskFragment CTF { get; }
+		public TaskFragment CTF { get; private set; }
 
 		// members & invitations
 		public CoalitionReconfigurationAgent Leader { get; }
@@ -72,6 +73,11 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 			Join(Leader = leader);
 		}
 
+		public void MergeCtf(TaskFragment fragment)
+		{
+			CTF = fragment.Merge(CTF);
+		}
+
 		public bool Contains(BaseAgent baseAgent)
 		{
 			return _baseAgents.Contains(baseAgent);
@@ -99,7 +105,7 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
                 {
                     // if we do not know current agent but know its predecessor, ask it
                     if (current == null && previous != null && previous.IsAlive)
-				        current = currentRole.PostCondition.Port;
+				        current = currentRole.Output;
 
                     // if we (still) cannot contact current agent because we do not know it or it is dead:
                     if (current == null || !current.IsAlive)
@@ -117,9 +123,9 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 
                         // otherwise, go back as far as possible
 				        currentRole = current.AllocatedRoles.Single(role => role.Task == Task && role.PreCondition.StateLength == currentPos);
-				        while (currentRole.PreCondition.Port != null && currentRole.PreCondition.Port.IsAlive)
+				        while (currentRole.Input != null && currentRole.Input.IsAlive)
 				        {
-				            current = currentRole.PreCondition.Port;
+				            current = currentRole.Input;
 					        currentRole = current.AllocatedRoles.Single(role => role.Task == Task && role.PostCondition.StateLength == currentPos);
 							currentPos = currentRole.PreCondition.StateLength;
 				        }
@@ -131,7 +137,7 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 					previous = current;
                     currentRole = current.AllocatedRoles.Single(role => role.Task == Task && role.PreCondition.StateLength == currentPos);
 				    currentPos = currentRole.PostCondition.StateLength;
-				    current = currentRole.PostCondition.Port;
+				    current = currentRole.Output;
 				}
 			} while (ctfStart > CTF.Start || ctfEnd < CTF.End); // loop because invitations might have enlarged CTF
 		}
@@ -160,7 +166,13 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 
 			// Invite the agent.
 			_invitations[agent] = new TaskCompletionSource<CoalitionReconfigurationAgent>();
-			agent.RequestReconfiguration(Leader, Task); // do NOT await; await invitation response (see below) instead (otherwise a deadlock occurs)
+
+			// Do NOT await this call. Await the invitation response instead (see below),
+			// otherwise a deadlock occurs. Don't ignore task either, or any exception would
+			// be swallowed. Thus, schedule the call. MicrostepScheduler handles swallowed
+			// exceptions.
+			MicrostepScheduler.Schedule(() => agent.RequestReconfiguration(Leader, Task));
+
 			var newMember = await _invitations[agent].Task; // wait for the invited agent to respond
 
 			// If the invited agent already belongs to a coalition, a merge was initiated.
@@ -233,8 +245,7 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 			if (minPreState == -1) // && maxPostState == -1
 				return;
 
-			CTF.Prepend(minPreState);
-			CTF.Append(maxPostState);
+			CTF = new TaskFragment(Task, minPreState, maxPostState).Merge(CTF);
 		}
 
 		/// <summary>
@@ -248,7 +259,7 @@ namespace SafetySharp.Odp.Reconfiguration.CoalitionFormation
 
 		/// <summary>
 		/// Notifies the coalition an invited agent already belongs to a different coalition,
-		/// and that it will receive a <see cref="RendezvousRequest(Coalition, CoalitionReconfigurationAgent)"/> from
+		/// and that its <see cref="MergeSupervisor"/> will receive a <see cref="MergeSupervisor.RendezvousRequest"/> from
 		/// the opposing <paramref name="leader"/>.
 		/// </summary>
 		public void AwaitRendezvous(CoalitionReconfigurationAgent invitedAgent, CoalitionReconfigurationAgent leader)

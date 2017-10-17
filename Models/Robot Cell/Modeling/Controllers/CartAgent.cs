@@ -42,13 +42,13 @@ namespace SafetySharp.CaseStudies.RobotCell.Modeling.Controllers
 
 		protected CartAgent() { } // for fault effects
 
-		public override string Name => $"C{ID}";
+		public override string Name => $"C{Id}";
 
 		public Cart Cart { get; }
 
 		protected override void TransferResource()
 		{
-			var agent = (RobotAgent)CurrentRole?.PostCondition.Port;
+			var agent = (RobotAgent)RoleExecutor.Output;
 
 			// If we fail to move to the robot, the cart loses its route
 			if (MoveTo(agent.Robot))
